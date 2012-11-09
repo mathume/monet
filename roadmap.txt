@@ -1,0 +1,10 @@
+1.) monetdb.mapi implementiert die Serververbindung und das Senden von MAPI-Commands.
+2.) monetdb.sql.types definiert die MonetDB-Datentypen.
+3.) monetdb.sql.monetize und monetdb.sql.pythonize definieren die Mappings zwischen den Datentypen.
+    Sie sind in monetdb.sql.converters als Objekte zusammengefasst.
+4.) monetdb.sql.cursors entsprechen etwa den Rows aus database/sql/driver.
+5.) monetdb.sql.connections stellt die Verbindung zu einer Datenbank her und regelt die Kommunikation von
+    SQL-Befehlen.
+6.) mapi muss in go nachgeahmt werden. Es liegt dann der driver-Implementation zugrunde.
+7.) types, monetize, pythonize und converters werden als ValueConverter definiert.
+8.) cursors und connections implementieren die eigentlichen Aktionen, auf die sql.DB zugreift.
