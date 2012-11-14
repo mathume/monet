@@ -6,6 +6,7 @@ import (
 	"os"
 	"net"
 	"time"
+	"strings"
 )
 
 var Logger log.Logger = *log.New(os.Stdout, "monetdb ", log.LstdFlags)
@@ -99,4 +100,49 @@ func (srv *server) setConn(hostname, port, username, password, database, languag
 
 func (srv *server) Disconnect() (err error) {
 	return
+}
+
+func (srv *server)challenge_response(challenge string){
+        //""" generate a response to a mapi login challenge """
+        challenges := strings.Split(challenge, ':')
+        salt, identity, protocol, hashes, endian := challenges[0], challenges[1], challenges[2], challenges[3], challenges[4]
+        password := srv.password
+
+        if protocol == "9"{
+            algo := challenges[5]
+            h := StringToHashConst[algo]
+            h.update(password)
+            password = h.hexdigest()
+        }else if protocol != "8"{
+            panic("We only speak protocol v8 and v9")
+		}
+		
+        h := strings.split(hashes, ",")
+        var pwhash string
+        
+        for _,hash := range h {
+        	switch hash {
+        	case "SHA1":
+        	case "MD5":
+        	case "crypt":
+        		panic("crypt not implemented")
+        	default:
+        		pwhash = "{plain}" + password + salt	
+        }
+//        if "SHA1" in h:
+//            s = hashlib.sha1()
+//            s.update(password.encode())
+//            s.update(salt.encode())
+//            pwhash = "{SHA1}" + s.hexdigest()
+//        elif "MD5" in h:
+//            m = hashlib.md5()
+//            m.update(password.encode())
+//            m.update(salt.encode())
+//            pwhash = "{MD5}" + m.hexdigest()
+//        elif "crypt" in h:
+//            import crypt
+//            pwhash = "{crypt}" + crypt.crypt((password+salt)[:8], salt[-2:])
+        
+        toBeJoined := []string{"BIG", srv.username, pwhash, srv.language, srv.database}
+        return strings.Join(toBeJoined, ":") + ":"
 }
