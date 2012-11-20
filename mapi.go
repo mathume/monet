@@ -1,16 +1,33 @@
 package monet
 
 import (
+	"crypto"
+	_ "crypto/md5"
+	_ "crypto/sha1"
+	_ "crypto/sha256"
+	_ "crypto/sha512"
+	_ "code.google.com/p/go.crypto/md4"
+	_ "code.google.com/p/go.crypto/ripemd160"
+	"encoding/hex"
 	"errors"
 	"log"
-	"os"
+	"monet/crypt"
 	"net"
-	"time"
+	"os"
 	"strings"
+	"time"
 )
 
 var Logger log.Logger = *log.New(os.Stdout, "monetdb ", log.LstdFlags)
 var LoginErr error = errors.New("Login failed.")
+var PyHashToGo = map[string]crypto.Hash{
+	"MD5":    crypto.MD5,
+	"SHA1":   crypto.SHA1,
+	"SHA224": crypto.SHA224,
+	"SHA256": crypto.SHA256,
+	"SHA384": crypto.SHA384,
+	"SHA512": crypto.SHA512,
+}
 
 const (
 	MAX_PACKAGE_LENGTH = (1024 * 8) - 2
@@ -84,7 +101,6 @@ func (srv *server) Connect(hostname, port, username, password, database, languag
 }
 
 func (srv *server) login(iteration int) (err error) {
-	err = LoginErr
 	return
 }
 
@@ -98,51 +114,59 @@ func (srv *server) setConn(hostname, port, username, password, database, languag
 	return
 }
 
+func (srv *server) getblock() string {
+	return ""
+}
+
 func (srv *server) Disconnect() (err error) {
 	return
 }
 
-func (srv *server)challenge_response(challenge string){
-        //""" generate a response to a mapi login challenge """
-        challenges := strings.Split(challenge, ':')
-        salt, identity, protocol, hashes, endian := challenges[0], challenges[1], challenges[2], challenges[3], challenges[4]
-        password := srv.password
+func (srv *server) challenge_response(challenge string) (response string) {
+	//""" generate a response to a mapi login challenge """
+	challenges := strings.Split(challenge, ":")
+	salt,_ , protocol, hashes,_ := challenges[0], challenges[1], challenges[2], challenges[3], challenges[4]
+	password := srv.password
 
-        if protocol == "9"{
-            algo := challenges[5]
-            h := StringToHashConst[algo]
-            h.update(password)
-            password = h.hexdigest()
-        }else if protocol != "8"{
-            panic("We only speak protocol v8 and v9")
+	if protocol == "9" {
+		algo := challenges[5]
+		h := PyHashToGo[algo].New()
+		h.Write([]byte(password))
+		password = hex.EncodeToString(h.Sum(nil))
+	} else if protocol != "8" {
+		panic("We only speak protocol v8 and v9")
+	}
+
+	var pwhash string
+	hh := strings.Split(hashes, ",")
+	if contains(hh, "SHA1") {
+		s := crypto.SHA1.New()
+		s.Write([]byte(password))
+		s.Write([]byte(salt))
+		pwhash = "{SHA1}" + hex.EncodeToString(s.Sum(nil))
+	} else if contains(hh, "MD5") {
+		s := crypto.MD5.New()
+		s.Write([]byte(password))
+		s.Write([]byte(salt))
+		pwhash = "{MD5}" + hex.EncodeToString(s.Sum(nil))
+	} else if contains(hh, "crypt") {
+		pwhash, err := crypt.Crypt((password + salt)[:8], salt[len(salt)-2:])
+		if err != nil {
+			panic(err.Error())
 		}
-		
-        h := strings.split(hashes, ",")
-        var pwhash string
-        
-        for _,hash := range h {
-        	switch hash {
-        	case "SHA1":
-        	case "MD5":
-        	case "crypt":
-        		panic("crypt not implemented")
-        	default:
-        		pwhash = "{plain}" + password + salt	
-        }
-//        if "SHA1" in h:
-//            s = hashlib.sha1()
-//            s.update(password.encode())
-//            s.update(salt.encode())
-//            pwhash = "{SHA1}" + s.hexdigest()
-//        elif "MD5" in h:
-//            m = hashlib.md5()
-//            m.update(password.encode())
-//            m.update(salt.encode())
-//            pwhash = "{MD5}" + m.hexdigest()
-//        elif "crypt" in h:
-//            import crypt
-//            pwhash = "{crypt}" + crypt.crypt((password+salt)[:8], salt[-2:])
-        
-        toBeJoined := []string{"BIG", srv.username, pwhash, srv.language, srv.database}
-        return strings.Join(toBeJoined, ":") + ":"
+		pwhash = "{crypt}" + pwhash
+	} else {
+		pwhash = "{plain}" + password + salt
+	}
+
+	return strings.Join([]string{"BIG", srv.username, pwhash, srv.language, srv.database}, ":") + ":"
+}
+
+func contains(list []string, item string) (b bool) {
+	for _, v := range list {
+		if v == item {
+			b = true
+		}
+	}
+	return
 }

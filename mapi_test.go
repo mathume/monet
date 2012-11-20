@@ -12,10 +12,17 @@ import (
 var (
 	logger  *writer
 	testsrv *echo.TestSrv
+	validPort = echo.TEST_PORT
 )
 
 const (
-	TESTDB = "test"
+	validDatabase = "test"
+	validChallenge = "a3LRYd2Gu79jniO:merovingian:9:RIPEMD160,SHA256,SHA1,MD5:LIT:SHA512:"
+	validResponse = "BIG::{SHA1}d67566a2f80453a95f9dbec976351bc6345192a1:::"
+	validUser = "monetdb"
+	correctPassword = "monetdb"
+	hostname = "localhost"
+	validLanguage = "sql"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -44,28 +51,39 @@ func (s *MAPI) TestNewServer(c *C) {
 
 func (s *MAPI) TestCorrectConnection(c *C) {
 	srv := NewServer()
-	validUser, correctPassword := "monetdb", "monetdb"
-	anyDatabase, validLanguage := "", "en"
-	hostname, port := "localhost", echo.TEST_PORT
-	err := srv.Connect(hostname, port, validUser, correctPassword, anyDatabase, validLanguage, 0*time.Second)
+	anyDatabase  := ""
+	err := srv.Connect(hostname, validPort, validUser, correctPassword, anyDatabase, validLanguage, time.Second)
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(logger.Msg, "Connection succeeded"), Equals, true)
 }
 
 func (s *MAPI) TestWrongConnection(c *C) {
 	srv := NewServer()
-	validUser, correctPassword := "monetdb", "monetdb"
-	anyDatabase, validLanguage := "", "en"
-	hostname, port := "invalid", echo.TEST_PORT
-	err := srv.Connect(hostname, port, validUser, correctPassword, anyDatabase, validLanguage, 0*time.Second)
+	anyDatabase := ""
+	invalidhostname := "invalid"
+	err := srv.Connect(invalidhostname, validPort, validUser, correctPassword, anyDatabase, validLanguage, time.Second)
 	c.Assert(err, NotNil)
 }
 
 func (s *MAPI) TestLoginFails(c *C) {
 	srv := NewServer()
-	validUser, correctPW := "monetdb", "monetdb"
-	hostname, port := "localhost", echo.TEST_PORT
-	validDatabase, validLanguage := TESTDB, "en"
-	err := srv.Connect(hostname, port, validUser, correctPW, validDatabase, validLanguage, 1*time.Second)
+	err := srv.Connect(hostname, validPort, validUser, correctPassword, validDatabase, validLanguage, time.Second)
 	c.Assert(err, Equals, LoginErr)
+}
+
+func (s *MAPI) TestChallenge_Response(c *C){
+	var cc conn
+	srv := server{cc, STATE_INIT, nil, nil}
+	response := srv.challenge_response(validChallenge)
+	c.Assert(response, Equals, validResponse)
+}
+
+func (s *MAPI) TestContains(c *C){
+	st := []string {"RIPEMD160","SHA256","SHA1","MD5"}
+	if contains(st, "") { 
+		c.Fatal("Found empty string")
+	}
+	if !contains(st, "SHA256") {
+		c.Fatal("Didn't find SHA256")
+	}
 }
