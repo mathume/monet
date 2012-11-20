@@ -3,7 +3,7 @@ package crypt
 import "testing"
 
 func Test_crypt(t *testing.T){
-	key, slash := "27041982_sebastian_mitterle", "./"
+	key, slash := "27041982_mathume", "./"
 	digest, err := Crypt(key, slash)
 	if err != nil {
 		t.Fatal(err)

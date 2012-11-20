@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 int main(){
-	char* key = "27041982_sebastian_mitterle";
+	char* key = "27041982_mathume";
 	char* slash = "./";
 	char* digest = crypt(key, slash);
 	printf("%s", digest);
