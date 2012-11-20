@@ -30,3 +30,5 @@ func Crypt(key, slash string) (digest string, err error) {
 	digest = C.GoString(d)
 	return
 }
+
+
