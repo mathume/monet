@@ -1,16 +1,16 @@
 package monet
 
 import (
-	"monet/crypt"
 	"crypto"
 	_ "crypto/md5"
 	_ "crypto/sha1"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
-	"encoding/hex"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"log"
+	"monet/crypt"
 	"net"
 	"os"
 	"strings"
@@ -86,7 +86,7 @@ func (srv *server) Cmd(operation string) (err error) {
 	return
 }
 
-func (srv *server) connect(protocol, host string, timeout time.Duration) (err error){
+func (srv *server) connect(protocol, host string, timeout time.Duration) (err error) {
 	srv.netConn, err = net.DialTimeout(protocol, host, timeout)
 	if err != nil {
 		return
@@ -178,7 +178,7 @@ func (srv *server) getblock() (result string, err error) {
 		length := unpacked >> 1
 		last = unpacked & 1
 		Logger.Println("II: reading", length, "bytes, last:", last)
-		
+
 		read, er := srv.getbytes(length)
 		if er != nil {
 			err = er
@@ -198,6 +198,49 @@ func (srv *server) getbytes(many int) (bytes []byte, err error) {
 		err = errors.New("didn't receive enought bytes")
 	}
 	return
+}
+
+func (srv *server) putblock(bytes []byte) (err error) {
+	last := 0
+	for last == 0 {
+		var data []byte
+		length := len(bytes)
+		if length < MAX_PACKAGE_LENGTH {
+			last = 1
+			data = bytes
+		} else {
+			data = bytes[:MAX_PACKAGE_LENGTH]
+			bytes = bytes[MAX_PACKAGE_LENGTH:]
+		}
+		flag := make([]byte, 2)
+		i_flag := uint16((length << 1) + 1)
+		binary.LittleEndian.PutUint16(flag, i_flag)
+		Logger.Println("II: sending", length, "bytes, last:", last)
+		Logger.Println("TX:", data)
+		n1, err1 := srv.conn.netConn.Write(flag)
+		n2, err2 := srv.conn.netConn.Write(data)
+		if n1 != len(flag) || n2 != len(data) {
+			err = errors.New("putblock: not all data was trasmitted")
+			Logger.Println("putblock: n1=", n1, ", n2=", n2)
+		}
+		if err1 != nil {
+			err = errors.New("putblock: not all data was transmitted")
+			Logger.Println("putblock: ", err1.Error())
+		}
+		if err2 != nil {
+			err = errors.New("putblock: not all data was transmitted")
+			Logger.Println("putblock: ", err2.Error())
+		}
+	}
+	return
+}
+
+func max(n1, n2 int) (m int){
+	m = n1
+	if n1 < n2 {
+		m = n2
+	}
+	return	
 }
 
 func contains(list []string, item string) (b bool) {
