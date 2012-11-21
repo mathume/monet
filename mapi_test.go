@@ -2,6 +2,7 @@ package monet
 
 import (
 	"echo"
+	"encoding/binary"
 	. "launchpad.net/gocheck"
 	"log"
 	"strings"
@@ -10,19 +11,19 @@ import (
 )
 
 var (
-	logger  *writer
-	testsrv *echo.TestSrv
+	logger    *writer
+	testsrv   *echo.TestSrv
 	validPort = echo.TEST_PORT
 )
 
 const (
-	validDatabase = "test"
-	validChallenge = "a3LRYd2Gu79jniO:merovingian:9:RIPEMD160,SHA256,SHA1,MD5:LIT:SHA512:"
-	validResponse = "BIG::{SHA1}d67566a2f80453a95f9dbec976351bc6345192a1:::"
-	validUser = "monetdb"
+	validDatabase   = "test"
+	validChallenge  = "a3LRYd2Gu79jniO:merovingian:9:RIPEMD160,SHA256,SHA1,MD5:LIT:SHA512:"
+	validResponse   = "BIG::{SHA1}d67566a2f80453a95f9dbec976351bc6345192a1:::"
+	validUser       = "monetdb"
 	correctPassword = "monetdb"
-	hostname = "localhost"
-	validLanguage = "sql"
+	hostname        = "localhost"
+	validLanguage   = "sql"
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -33,7 +34,9 @@ func (m *MAPI) SetUpSuite(c *C) {
 	logger = new(writer)
 	Logger = *log.New(logger, "monet_test ", log.LstdFlags)
 	testsrv = echo.NewTestSrv()
-	go func() { testsrv.Start() }()
+	go func() {
+		testsrv.Start()
+	}()
 	time.Sleep(time.Second)
 }
 
@@ -50,40 +53,83 @@ func (s *MAPI) TestNewServer(c *C) {
 }
 
 func (s *MAPI) TestCorrectConnection(c *C) {
-	srv := NewServer()
-	anyDatabase  := ""
-	err := srv.Connect(hostname, validPort, validUser, correctPassword, anyDatabase, validLanguage, time.Second)
+	srv := server{*new(conn), STATE_INIT, nil, nil}
+	err := srv.connect(NET, hostname+validPort, time.Second)
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(logger.Msg, "Connection succeeded"), Equals, true)
 }
 
-func (s *MAPI) TestWrongConnection(c *C) {
-	srv := NewServer()
-	anyDatabase := ""
-	invalidhostname := "invalid"
-	err := srv.Connect(invalidhostname, validPort, validUser, correctPassword, anyDatabase, validLanguage, time.Second)
-	c.Assert(err, NotNil)
-}
-
-func (s *MAPI) TestLoginFails(c *C) {
-	srv := NewServer()
-	err := srv.Connect(hostname, validPort, validUser, correctPassword, validDatabase, validLanguage, time.Second)
-	c.Assert(err, Equals, LoginErr)
-}
-
-func (s *MAPI) TestChallenge_Response(c *C){
-	var cc conn
-	srv := server{cc, STATE_INIT, nil, nil}
+func (s *MAPI) TestChallenge_Response(c *C) {
+	srv := server{*new(conn), STATE_INIT, nil, nil}
 	response := srv.challenge_response(validChallenge)
 	c.Assert(response, Equals, validResponse)
 }
 
-func (s *MAPI) TestContains(c *C){
-	st := []string {"RIPEMD160","SHA256","SHA1","MD5"}
-	if contains(st, "") { 
+func (s *MAPI) TestContains(c *C) {
+	st := []string{"RIPEMD160", "SHA256", "SHA1", "MD5"}
+	if contains(st, "") {
 		c.Fatal("Found empty string")
 	}
 	if !contains(st, "SHA256") {
 		c.Fatal("Didn't find SHA256")
 	}
+}
+
+func (s *MAPI) TestGetBytes(c *C) {
+	srv := server{*new(conn), STATE_INIT, nil, nil}
+	bytesToSend := []byte("01")
+
+	testsrv.Set(string(bytesToSend))
+	err := srv.connect(NET, hostname+validPort, time.Second)
+	if err != nil {
+		c.Fatal(err)
+	}
+	bb, err := srv.getbytes(2)
+	c.Assert(err, IsNil)
+	c.Assert(bb[0], Equals, bytesToSend[0])
+	c.Assert(bb[1], Equals, bytesToSend[1])
+}
+
+func (s *MAPI) TestGetBlockShort(c *C) {
+	msg := []byte("hello")
+	length, last := len(msg), 1
+	flag := make([]byte, 2)
+	i_flag := uint16((length << 1) + last)
+	binary.LittleEndian.PutUint16(flag, i_flag)
+	send := append(flag, msg...)
+	msg_ := string(send)
+	testsrv.Set(msg_)
+	srv := server{*new(conn), STATE_INIT, nil, nil}
+	err := srv.connect(NET, hostname+validPort, time.Second)
+	if err != nil {
+		c.Fatal(err)
+	}
+	r, err := srv.getblock()
+	c.Log(logger.Msg)
+	c.Assert(err, IsNil)
+	c.Assert(r, Equals, string(msg))
+}
+
+func (s *MAPI) TestGetBlockLong(c *C) {
+	msg1,msg2 := []byte("kaixo"), []byte("mundua")
+	length1, length2 := len(msg1), len(msg2)
+	flag1, flag2 := make([]byte, 2), make([]byte, 2)
+	i_flag1 := uint16((length1 << 1) + 0)
+	i_flag2 := uint16((length2 << 1) + 1)	
+	binary.LittleEndian.PutUint16(flag1, i_flag1)
+	binary.LittleEndian.PutUint16(flag2, i_flag2)
+	send := append(flag1, msg1...)
+	send = append(send, flag2...)
+	send = append(send, msg2...)
+	msg_ := string(send)
+	testsrv.Set(msg_)
+	srv := server{*new(conn), STATE_INIT, nil, nil}
+	err := srv.connect(NET, hostname+validPort, time.Second)
+	if err != nil {
+		c.Fatal(err)
+	}
+	r, err := srv.getblock()
+	c.Log(logger.Msg)
+	c.Assert(err, IsNil)
+	c.Assert(r, Equals, string(msg1) + string(msg2))	
 }
