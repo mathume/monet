@@ -127,7 +127,7 @@ func (srv *server) Disconnect() (err error) {
 func (srv *server) challenge_response(challenge string) (response string) {
 	//""" generate a response to a mapi login challenge """
 	challenges := strings.Split(challenge, ":")
-	salt, _, protocol, hashes, _ := challenges[0], challenges[1], challenges[2], challenges[3], challenges[4]
+	salt, protocol, hashes := challenges[0], challenges[2], challenges[3]
 	password := srv.password
 
 	if protocol == "9" {
@@ -136,7 +136,7 @@ func (srv *server) challenge_response(challenge string) (response string) {
 		h.Write([]byte(password))
 		password = hex.EncodeToString(h.Sum(nil))
 	} else if protocol != "8" {
-		panic("We only speak protocol v8 and v9")
+		Logger.Fatalln("We only speak protocol v8 and v9")
 	}
 
 	var pwhash string
@@ -154,14 +154,15 @@ func (srv *server) challenge_response(challenge string) (response string) {
 	} else if contains(hh, "crypt") {
 		pwhash, err := crypt.Crypt((password + salt)[:8], salt[len(salt)-2:])
 		if err != nil {
-			panic(err.Error())
+			Logger.Println("Error calculating response in crypt:")
+			Logger.Fatalln(err)
 		}
 		pwhash = "{crypt}" + pwhash
 	} else {
 		pwhash = "{plain}" + password + salt
 	}
-
-	return strings.Join([]string{"BIG", srv.username, pwhash, srv.language, srv.database}, ":") + ":"
+	response = strings.Join([]string{"BIG", srv.username, pwhash, srv.language, srv.database}, ":") + ":"
+	return
 }
 
 func (srv *server) getblock() (result string, err error) {
