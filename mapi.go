@@ -121,6 +121,8 @@ func (srv *server) setConn(hostname, port, username, password, database, languag
 }
 
 func (srv *server) Disconnect() (err error) {
+	err = srv.conn.netConn.Close()
+	srv.state = STATE_INIT
 	return
 }
 

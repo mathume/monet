@@ -156,6 +156,24 @@ func (s *MAPI) TestPutBlockShort(c *C) {
 	c.Assert(act, Equals, exp)
 }
 
+func (s *MAPI) TestDisconnect(c *C) {
+	conn := new(conn)
+	srv := server{*conn, STATE_INIT, nil, nil}
+	err := srv.connect(NET, hostname+validPort, time.Second)
+	srv.state = STATE_READY
+	if err != nil {
+		c.Fatal(err)
+	}
+	fconn := NewFakeConn()
+	fconn.ReturnErrorOnClose(true)
+	srv.conn.netConn = fconn.(net.Conn)
+	srv.conn.netConn.Close()
+	err = srv.Disconnect()
+	c.Assert(err, NotNil)
+	c.Assert(srv.state, Equals, STATE_INIT)
+
+}
+
 func (s *MAPI) TestStringComparison(c *C) {
 	s1, s2 := "hello", "hello"
 	c.Assert(s1, Equals, s2)
@@ -166,18 +184,28 @@ func (s *MAPI) TestMax(c *C) {
 }
 
 func (s *MAPI) TestFakeConn(c *C) {
-	f := new(fakeConn)
+	f := NewFakeConn()
+	c.Assert(f.Closed(), Equals, false)
+	c.Assert(f.ReturnsErrorOnClose(), Equals, false)
 	msg := []byte("hello")
 	n, err := f.Write(msg)
 	c.Assert(err, IsNil)
 	c.Assert(n, Equals, len(msg))
 	act, exp := string(f.Received()), string(msg)
 	c.Assert(act, Equals, exp)
+	f.ReturnErrorOnClose(true)
+	c.Assert(f.ReturnsErrorOnClose(), Equals, true)
+	err = f.Close()
+	c.Assert(err, NotNil)
+	c.Assert(f.Closed(), Equals, true)
 }
 
 type FakeConn interface {
 	net.Conn
 	Received() []byte
+	Closed() bool
+	ReturnsErrorOnClose() bool
+	ReturnErrorOnClose(b bool)
 }
 
 func NewFakeConn() FakeConn {
@@ -186,7 +214,22 @@ func NewFakeConn() FakeConn {
 }
 
 type fakeConn struct {
-	received []byte
+	received           []byte
+	closed             bool
+	returnErrorOnClose bool
+}
+
+func (f *fakeConn) ReturnErrorOnClose(b bool) {
+	f.returnErrorOnClose = b
+	return
+}
+
+func (f *fakeConn) ReturnsErrorOnClose() bool {
+	return f.returnErrorOnClose
+}
+
+func (f *fakeConn) Closed() bool {
+	return f.closed
 }
 
 func (f *fakeConn) Received() []byte {
@@ -209,4 +252,10 @@ func (f *fakeConn) RemoteAddr() (raddr net.Addr)             { return }
 func (f *fakeConn) SetDeadline(t time.Time) (err error)      { return }
 func (f *fakeConn) SetWriteDeadline(t time.Time) (err error) { return }
 func (f *fakeConn) SetReadDeadline(t time.Time) (err error)  { return }
-func (f *fakeConn) Close() (err error)                       { return }
+func (f *fakeConn) Close() (err error) {
+	f.closed = true
+	if f.returnErrorOnClose {
+		err = errors.New("error at close")
+	}
+	return
+}
