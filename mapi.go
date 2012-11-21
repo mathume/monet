@@ -1,8 +1,7 @@
 package monet
 
 import (
-	_ "code.google.com/p/go.crypto/md4"
-	_ "code.google.com/p/go.crypto/ripemd160"
+	"monet/crypt"
 	"crypto"
 	_ "crypto/md5"
 	_ "crypto/sha1"
@@ -12,7 +11,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"log"
-	"monet/crypt"
 	"net"
 	"os"
 	"strings"
