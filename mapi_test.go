@@ -2,11 +2,11 @@ package monet
 
 import (
 	"encoding/binary"
-	"testing"
 	. "launchpad.net/gocheck"
 	"log"
 	"net"
 	"strings"
+	"testing"
 	"time"
 )
 
@@ -170,10 +170,6 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 	expected := append(flag, msg...)
 	conn := new(conn)
 	srv := server{*conn, STATE_INIT, nil, nil, Logger}
-	//err := srv.connect(NET, hostname+validPort, time.Second)
-	//if err != nil {
-		//c.Fatal(err)
-	//}
 	fconn := NewFakeConn()
 	srv.conn.netConn = fconn.(net.Conn)
 	err := srv.putblock(msg)
@@ -185,11 +181,6 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 func (s *MAPISERVER) TestDisconnect(c *C) {
 	conn := new(conn)
 	srv := server{*conn, STATE_INIT, nil, nil, Logger}
-	//err := srv.connect(NET, hostname+validPort, time.Second)
-	//srv.state = STATE_READY
-	//if err != nil {
-		//c.Fatal(err)
-	//}
 	fconn := NewFakeConn()
 	fconn.ReturnErrorOnClose(true)
 	srv.conn.netConn = fconn.(net.Conn)
@@ -197,6 +188,39 @@ func (s *MAPISERVER) TestDisconnect(c *C) {
 	err := srv.Disconnect()
 	c.Assert(err, NotNil)
 	c.Assert(srv.state, Equals, STATE_INIT)
+
+}
+
+func (s *MAPISERVER) TestCmd(c *C) {
+	conn := new(conn)
+	//check state
+	srv := server{*conn, STATE_INIT, nil, nil, Logger}
+	_, err := srv.Cmd("anyCommand")
+	c.Assert(strings.Contains(err.Error(), "not ready"), Equals, true)
+	srv.state = STATE_READY
+	//no response no error
+	fconn := NewFakeConn()
+	srv.conn.netConn = fconn.(net.Conn)
+	willBePutToFakeConn := ""
+	response, err := srv.Cmd(willBePutToFakeConn)
+	c.Assert(err, IsNil)
+	c.Assert(response, Equals, "")
+	//non empty response no error
+	well := []string{MSG_Q, MSG_HEADER, MSG_TUPLE}
+	for _,v := range well {
+		willBePutToFakeConn = string(v) + "anyTestResponse"
+		fconn = NewFakeConn()
+		response, err = srv.Cmd(willBePutToFakeConn)
+		c.Assert(err, IsNil)
+		c.Assert(response, Equals, willBePutToFakeConn)
+	}
+	//response error message
+	expErrMsg := "expected error message"
+	willBePutToFakeConn = string(MSG_ERROR) + expErrMsg
+	fconn = NewFakeConn()
+	response, err = srv.Cmd(willBePutToFakeConn)
+	c.Assert(err, Not(IsNil))
+	c.Assert(strings.Contains(err.Error(), expErrMsg), Equals, true)
 
 }
 

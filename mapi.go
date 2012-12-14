@@ -18,7 +18,6 @@ import (
 )
 
 var Logger *log.Logger = log.New(os.Stdout, "monetdb ", log.LstdFlags)
-var LoginErr error = errors.New("Login failed.")
 var PyHashToGo = map[string]crypto.Hash{
 	"MD5":    crypto.MD5,
 	"SHA1":   crypto.SHA1,
@@ -52,7 +51,7 @@ const (
 )
 
 type Server interface {
-	Cmd(operation string) error
+	Cmd(operation string) (string, error)
 	Connect(hostname, port, username, password, database, language string, timeout time.Duration) error
 	Disconnect() error
 }
@@ -75,7 +74,7 @@ type conn struct {
 	netConn  net.Conn
 }
 
-func NewServer()Server{
+func NewServer() Server {
 	return CreateServer(Logger)
 }
 
@@ -86,8 +85,36 @@ func CreateServer(logger *log.Logger) Server {
 	return &s
 }
 
-func (srv *server) Cmd(operation string) (err error) {
-	err = errors.New("Cmd not impl")
+func (srv *server) Cmd(operation string) (response string, err error) {
+	srv.logger.Println("II: executing command", operation)
+
+	if srv.state != STATE_READY {
+		err = errors.New("Programming error: not ready for command")
+		return
+	}
+
+	srv.putblock([]byte(operation))
+	response, err = srv.getblock()
+	if err != nil {
+		return
+	}
+	if len(response) == 0 {
+		return
+	}
+	well := []string{MSG_Q, MSG_HEADER, MSG_TUPLE}
+	var isWell bool
+	for _, v := range well {
+		isWell = isWell || strings.HasPrefix(response, v)
+	}
+	if isWell {
+		return
+
+	} else if string(response[0]) == MSG_ERROR {
+		err = errors.New("OperationalError: " + response[1:])
+		return
+	} else {
+		err = errors.New("ProgrammingError: unknown state " + string(response[0]))
+	}
 	return
 }
 
@@ -112,29 +139,33 @@ func (srv *server) Connect(hostname, port, username, password, database, languag
 
 func (srv *server) login(iteration int, timeout time.Duration) (err error) {
 	challenge, err := srv.getblock()
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	response := srv.challenge_response(challenge)
 	srv.putblock([]byte(response))
 	block, err := srv.getblock()
-	if err != nil { return }
+	if err != nil {
+		return
+	}
 	prompt := strings.TrimSpace(block)
 
 	if len(prompt) == 0 {
-	} else if strings.HasPrefix(prompt, MSG_INFO){
+	} else if strings.HasPrefix(prompt, MSG_INFO) {
 		srv.logger.Println("II", prompt[1:])
-	} else if strings.HasPrefix(prompt, MSG_ERROR){
+	} else if strings.HasPrefix(prompt, MSG_ERROR) {
 		srv.logger.Println(prompt[1:])
 		err = errors.New("DatabaseError " + prompt[1:])
-	} else if strings.HasPrefix(prompt, MSG_REDIRECT){
+	} else if strings.HasPrefix(prompt, MSG_REDIRECT) {
 		redirect := strings.Split(strings.Split(prompt, " \t\r\n")[0][1:], ":")
-		if redirect[1] == "merovingian"{
+		if redirect[1] == "merovingian" {
 			srv.logger.Println("II: merovingian proxy, restarting authentication")
 			if iteration <= 10 {
-				srv.login(iteration + 1, timeout)
+				srv.login(iteration+1, timeout)
 			} else {
 				err = errors.New("OperationalError, maximal number of redirects reached (10)")
 			}
-		} else if redirect[1] == "monetdb"{
+		} else if redirect[1] == "monetdb" {
 			srv.hostname = redirect[2][2:]
 			pd := strings.Split(redirect[3], "/")
 			srv.password, srv.database = pd[0], pd[1]
@@ -281,12 +312,12 @@ func (srv *server) putblock(bytes []byte) (err error) {
 	return
 }
 
-func max(n1, n2 int) (m int){
+func max(n1, n2 int) (m int) {
 	m = n1
 	if n1 < n2 {
 		m = n2
 	}
-	return	
+	return
 }
 
 func contains(list []string, item string) (b bool) {
