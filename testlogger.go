@@ -1,15 +1,15 @@
 package monet
 
-type writer struct {
+type Writer struct {
 	Msg string
 }
 
-func (w *writer) Clear() {
+func (w *Writer) Clear() {
 	w.Msg = ""
 	return
 }
 
-func (w *writer) Write(p []byte) (n int, err error) {
+func (w *Writer) Write(p []byte) (n int, err error) {
 	w.Msg += string(p)
 	n, err = len(p), nil
 	return

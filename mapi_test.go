@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	logger *writer
+	logger *Writer
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -30,7 +30,7 @@ func Test(t *testing.T) { TestingT(t) }
 type MAPISERVER struct{}
 
 func (m *MAPISERVER) SetUpSuite(c *C) {
-	logger = new(writer)
+	logger = new(Writer)
 	Logger = log.New(logger, "monet_test ", log.LstdFlags)
 }
 
