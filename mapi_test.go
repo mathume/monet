@@ -31,7 +31,7 @@ type MAPISERVER struct{}
 
 func (m *MAPISERVER) SetUpSuite(c *C) {
 	logger = new(writer)
-	Logger = *log.New(logger, "monet_test ", log.LstdFlags)
+	Logger = log.New(logger, "monet_test ", log.LstdFlags)
 }
 
 func (m *MAPISERVER) SetUpTest(c *C) {
@@ -41,7 +41,7 @@ func (m *MAPISERVER) SetUpTest(c *C) {
 var _ = Suite(&MAPISERVER{})
 
 func (s *MAPISERVER) TestCorrectConnection(c *C) {
-	srv := server{*new(conn), STATE_INIT, nil, nil}
+	srv := server{*new(conn), STATE_INIT, nil, nil, Logger}
 	err := srv.connect(NET, alwaysUpTcp, time.Second)
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(logger.Msg, "Connection succeeded"), Equals, true)
@@ -54,7 +54,7 @@ func (s *MAPISERVER) TestNewServer(c *C) {
 }
 
 func (s *MAPISERVER) TestChallenge_Response(c *C) {
-	srv := server{*new(conn), STATE_INIT, nil, nil}
+	srv := server{*new(conn), STATE_INIT, nil, nil, Logger}
 	response := srv.challenge_response(validChallenge)
 	c.Assert(response, Equals, validResponse)
 }
@@ -70,7 +70,7 @@ func (s *MAPISERVER) TestContains(c *C) {
 }
 
 func (s *MAPISERVER) TestGetBytes(c *C) {
-	srv := server{*new(conn), STATE_INIT, nil, nil}
+	srv := server{*new(conn), STATE_INIT, nil, nil, Logger}
 	bytesToSend := []byte("01")
 
 	fconn := NewFakeConn()
@@ -92,7 +92,7 @@ func (s *MAPISERVER) TestGetBlockShort(c *C) {
 	Logger.Println("send", send)
 	con := new(conn)
 	con.netConn = NewFakeConn().(net.Conn)
-	srv := server{*con, STATE_INIT, nil, nil}
+	srv := server{*con, STATE_INIT, nil, nil, Logger}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
 	r, err := srv.getblock()
@@ -151,7 +151,7 @@ func (s *MAPISERVER) TestGetBlockLong(c *C) {
 	Logger.Println("send", send)
 	con := new(conn)
 	con.netConn = NewFakeConn().(net.Conn)
-	srv := server{*con, STATE_INIT, nil, nil}
+	srv := server{*con, STATE_INIT, nil, nil, Logger}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
 
@@ -169,7 +169,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 	binary.LittleEndian.PutUint16(flag, i_flag)
 	expected := append(flag, msg...)
 	conn := new(conn)
-	srv := server{*conn, STATE_INIT, nil, nil}
+	srv := server{*conn, STATE_INIT, nil, nil, Logger}
 	//err := srv.connect(NET, hostname+validPort, time.Second)
 	//if err != nil {
 		//c.Fatal(err)
@@ -184,7 +184,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 
 func (s *MAPISERVER) TestDisconnect(c *C) {
 	conn := new(conn)
-	srv := server{*conn, STATE_INIT, nil, nil}
+	srv := server{*conn, STATE_INIT, nil, nil, Logger}
 	//err := srv.connect(NET, hostname+validPort, time.Second)
 	//srv.state = STATE_READY
 	//if err != nil {
