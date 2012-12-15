@@ -274,6 +274,7 @@ func (r *MRows) query(operation string) error {
 				r.rows = rows
 				r.offset = 0
 				r.rcou, _ = strconv.ParseInt(meta[1], 10, -1)
+				return nil
 			case strings.HasPrefix(l, monet.MSG_TUPLE):
 				rows = append(rows, r.parse(l))
 			}
