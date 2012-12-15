@@ -193,8 +193,8 @@ func (r *MResult) exec(operation string) error {
 		lines = lines[1:]
 		first = lines[0]
 	}
-
-	if strings.HasPrefix(res, monet.MSG_QUPDATE) {
+	switch {
+	case strings.HasPrefix(res, monet.MSG_QUPDATE):
 		sai := SplitWS(first[2:])
 		r.ra, err = strconv.ParseInt(sai[0], 10, 64)
 		r.lid, err = strconv.ParseInt(sai[1], 10, 64)
@@ -202,21 +202,13 @@ func (r *MResult) exec(operation string) error {
 			return err
 		}
 		return nil
-	}
-
-	if strings.HasPrefix(res, monet.MSG_QSCHEMA) {
+	case strings.HasPrefix(res, monet.MSG_QSCHEMA):
 		return nil
-	}
-
-	if strings.HasPrefix(res, monet.MSG_QTRANS) {
+	case strings.HasPrefix(res, monet.MSG_QTRANS):
 		return nil
-	}
-
-	if strings.HasPrefix(res, monet.MSG_PROMPT) {
+	case strings.HasPrefix(res, monet.MSG_PROMPT):
 		return nil
-	}
-
-	if strings.HasPrefix(res, monet.MSG_ERROR) {
+	case strings.HasPrefix(res, monet.MSG_ERROR):
 		return errors.New(first[1:])
 	}
 
@@ -234,6 +226,7 @@ func (r *MResult) RowsAffected() (int64, error) {
 type MRows struct {
 	conn     *MConn
 	rows     [][]driver.Value
+	rcou     int64
 	curr     int
 	cols     []string
 	query_id string
@@ -241,7 +234,7 @@ type MRows struct {
 }
 
 func createMRows(conn *MConn) MRows {
-	return MRows{conn, nil, -1, *new([]string), "", 0}
+	return MRows{conn, nil, -1, -1, *new([]string), "", 0}
 }
 
 func (r *MRows) query(operation string) error {
@@ -263,15 +256,48 @@ func (r *MRows) query(operation string) error {
 		first = lines[0]
 	}
 
-	if strings.HasPrefix(first, monet.MSG_QTABLE){
+	rows := make([][]driver.Value, 0)
+	switch {
+	case strings.HasPrefix(first, monet.MSG_QTABLE):
 		meta := SplitWS(first[2:])
-		
+
+		for _, l := range lines[1:] {
+			switch {
+			case strings.HasPrefix(l, monet.MSG_HEADER):
+				di := strings.Split(l[1:], "#")
+				if di[1] == "name" {
+					dd := strings.Split(di[0], ",")
+					r.cols = append(r.cols, dd...)
+				}
+			case strings.HasPrefix(l, monet.MSG_PROMPT):
+				r.query_id = meta[0]
+				r.rows = rows
+				r.offset = 0
+				r.rcou, _ = strconv.ParseInt(meta[1], 10, -1)
+			case strings.HasPrefix(l, monet.MSG_TUPLE):
+				rows = append(rows, r.parse(l))
+			}
+		}
+	case strings.HasPrefix(first, monet.MSG_QBLOCK):
+		for _, l := range lines[1:] {
+			switch {
+			case strings.HasPrefix(l, monet.MSG_TUPLE):
+				rows = append(rows, r.parse(l))
+			case strings.HasPrefix(l, monet.MSG_PROMPT):
+				r.rows = rows
+				return nil
+			}
+		}
 	}
 	return errors.New("Unknown state " + first)
 }
 
+func (r *MRows) parse(line string) []driver.Value {
+	return nil
+}
+
 func (r *MRows) Close() error {
-	if r.conn != nil{
+	if r.conn != nil {
 		r.conn = nil
 	}
 	return nil
@@ -293,7 +319,7 @@ func (r *MRows) Next(dest []driver.Value) error {
 	return nil
 }
 
-func SplitWS(s string) []string{
+func SplitWS(s string) []string {
 	res := make([]string, 0)
 	if s == "" {
 		return res
@@ -302,7 +328,7 @@ func SplitWS(s string) []string{
 	s = strings.Replace(s, "\n", " ", -1)
 	s = strings.Replace(s, "\r", " ", -1)
 	ss := strings.Split(s, " ")
-	for _,s := range ss {
+	for _, s := range ss {
 		if strings.Trim(s, " ") != "" {
 			res = append(res, s)
 		}
