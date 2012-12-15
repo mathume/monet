@@ -10,7 +10,10 @@ import (
 	. "launchpad.net/gocheck"
 )
 
-var logger = new(monet.Writer)
+var (
+	logger = new(monet.Writer)
+	validConnString = ConnectionString("localhost", "50000", "monetdb", "monetdb", "voc", 5*time.Second)
+)
 
 func Test(t *testing.T){ TestingT(t) }
 
@@ -37,10 +40,24 @@ func (d *DRIVER)TestErrorAtBadConnString(c *C){
 	c.Assert(err, Equals, ErrConnString)
 }
 
-func (d *DRIVER)TestErrorAtBadConnString1(c *C){
-	dr, _ := sql.Open(DRV_NAME, ConnectionString("localhost", "50000", "monetdb", "monetdb", "voc", 5*time.Second))
+func (d *DRIVER)TestPrepare(c *C){
+	dr, _ := Open(validConnString)
+	s, err := dr.Prepare("anyQuery")
+	c.Error("not finished yet")	
+}
+
+func (d *DRIVER)TestMTX(c *C){
+	c.Error("not finished yet")
+}
+
+
+type LIVE struct{}
+
+var _ = Suite(&LIVE{})
+
+func (l *LIVE)TestErrorAtBadConnString1(c *C){
+	dr, _ := sql.Open(DRV_NAME, defaultValidConnString)
 	
-	res, err := dr.Exec("select count(*) from voc.craftsmen")
-	c.Assert(err, IsNil)
-	c.Assert(res, Not(IsNil))
+	_, err := dr.Exec("select count(*) from voc.craftsmen")
+	c.Assert(err, Not(Equals), ErrConnString)
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"log"
 	"monet"
 	"os"
@@ -18,6 +19,7 @@ const (
 
 var (
 	ErrConnString             = errors.New("The given connection string wasn't valid.")
+	ErrNumInput               = errors.New("The number of arguments isn't equal to the number of placeholders.")
 	Logger        *log.Logger = log.New(os.Stdout, "monet/drv ", log.LstdFlags)
 )
 
@@ -29,15 +31,15 @@ func ConnectionString(hostname, port, username, password, database string, timeo
 	return strings.Join([]string{hostname, port, username, password, database, timeout.String()}, SEP)
 }
 
-type MDriver struct{
+type MDriver struct {
 }
 
-func (d *MDriver) Open(monetConnectionString string) (driver.Conn, error) {
+func (d *MDriver) Open(MConnString string) (driver.Conn, error) {
 	c := new(MConn)
 	c.srv = monet.NewServer()
-	s := strings.Split(monetConnectionString, SEP)
-	Logger.Println("written")
-	Logger.Println(monetConnectionString)
+	s := strings.Split(MConnString, SEP)
+	Logger.Println(MConnString)
+
 	if len(s) != 6 {
 		return nil, ErrConnString
 	}
@@ -45,7 +47,7 @@ func (d *MDriver) Open(monetConnectionString string) (driver.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = c.srv.Connect(s[0], ":" + s[1], s[2], s[3], s[4], "sql", dur)
+	err = c.srv.Connect(s[0], ":"+s[1], s[2], s[3], s[4], "sql", dur)
 	return c, err
 }
 
@@ -54,13 +56,85 @@ type MConn struct {
 }
 
 func (c *MConn) Prepare(query string) (driver.Stmt, error) {
-	return nil, errors.New("Prepare: not impl")
+	ni := strings.Count(query, "%")
+	return &MStmt{query, c.srv, ni, false}, nil
 }
 
 func (c *MConn) Close() error {
-	return errors.New("Close: not impl")
+	err := c.srv.Disconnect()
+	if err != nil {
+		return err
+	}
+	c.srv = nil
+	return nil
 }
 
 func (c *MConn) Begin() (driver.Tx, error) {
-	return nil, errors.New("Begin: not impl")
+	t := new(MTX)
+	t.c = c
+	_, err := t.c.exec("START TRANSACTION")
+	return t, err
+}
+
+func (c *MConn) exec(command string) (string, error) {
+	return c.srv.Cmd("s" + command + ";")
+}
+
+type MStmt struct {
+	query  string
+	srv    monet.Server
+	ni     int
+	closed bool
+}
+
+func (s *MStmt) Close() error {
+	return nil
+}
+
+func (s *MStmt) Exec(args []driver.Value) (driver.Result, error) {
+	if len(args) != s.ni {
+		return nil, ErrNumInput
+	}
+	
+	cmd := s.bind(args)
+
+	return nil, errors.New("stmt.exec not impl")
+}
+
+func (s *MStmt)bind(args []driver.Value) string{
+	return fmt.Sprintf(s.query, args)
+}
+
+func (s *MStmt) NumInput() int {
+	return s.ni
+}
+
+func (s *MStmt) Query(args []driver.Value) (driver.Rows, error) {
+	if len(args) != s.ni {
+		return nil, ErrNumInput
+	}
+	
+	cmd := s.bind(args)
+	
+	return nil, errors.New("stmt.query not impl")
+}
+
+type MTX struct {
+	c *MConn
+}
+
+func (t *MTX) Commit() error {
+	_, err := t.c.exec("COMMIT")
+	return err
+}
+
+func (t *MTX) Rollback() error {
+	_, err := t.c.exec("ROLLBACK")
+	return err
+}
+
+type MResult struct{
+}
+
+type MRows struct{
 }
