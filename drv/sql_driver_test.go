@@ -33,7 +33,7 @@ func (d *DRIVER)TestSQLDoesntCallOpenOnOpen(c *C){
 
 func (d *DRIVER)TestErrorAtBadConnString(c *C){
 	dr, _ := sql.Open(DRV_NAME, "bad:connection:string")
-	
+
 	res, err := dr.Exec("anyQuery")//triggers call to driver.Open
 	c.Log(res)
 	c.Log(logger.Msg)
