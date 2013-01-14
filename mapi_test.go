@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	logger *Writer
+	logger *writer
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -30,7 +30,7 @@ func Test(t *testing.T) { TestingT(t) }
 type MAPISERVER struct{}
 
 func (m *MAPISERVER) SetUpSuite(c *C) {
-	logger = new(Writer)
+	logger = new(writer)
 	Logger = log.New(logger, "monet_test ", log.LstdFlags)
 }
 
@@ -73,7 +73,7 @@ func (s *MAPISERVER) TestGetBytes(c *C) {
 	srv := server{*new(conn), STATE_INIT, nil, nil, Logger}
 	bytesToSend := []byte("01")
 
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	fconn.Write(bytesToSend)
 	srv.conn.netConn = fconn.(net.Conn)
 	bb, err := srv.getbytes(2)
@@ -91,7 +91,7 @@ func (s *MAPISERVER) TestGetBlockShort(c *C) {
 	send := append(flag, msg...)
 	Logger.Println("send", send)
 	con := new(conn)
-	con.netConn = NewFakeConn().(net.Conn)
+	con.netConn = newFakeConn().(net.Conn)
 	srv := server{*con, STATE_INIT, nil, nil, Logger}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
@@ -103,7 +103,7 @@ func (s *MAPISERVER) TestGetBlockShort(c *C) {
 
 func (s *MAPISERVER) TestFakeConn(c *C) {
 	//create
-	f := NewFakeConn()
+	f := newFakeConn()
 	c.Assert(f.Closed(), Equals, false)
 	c.Assert(f.ReturnsErrorOnClose(), Equals, false)
 	//send
@@ -150,7 +150,7 @@ func (s *MAPISERVER) TestGetBlockLong(c *C) {
 	send = append(send, msg2...)
 	Logger.Println("send", send)
 	con := new(conn)
-	con.netConn = NewFakeConn().(net.Conn)
+	con.netConn = newFakeConn().(net.Conn)
 	srv := server{*con, STATE_INIT, nil, nil, Logger}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
@@ -170,7 +170,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 	expected := append(flag, msg...)
 	conn := new(conn)
 	srv := server{*conn, STATE_INIT, nil, nil, Logger}
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	srv.conn.netConn = fconn.(net.Conn)
 	err := srv.putblock(msg)
 	c.Assert(err, IsNil)
@@ -181,7 +181,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 func (s *MAPISERVER) TestDisconnect(c *C) {
 	conn := new(conn)
 	srv := server{*conn, STATE_INIT, nil, nil, Logger}
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	fconn.ReturnErrorOnClose(true)
 	srv.conn.netConn = fconn.(net.Conn)
 	srv.conn.netConn.Close()
@@ -199,7 +199,7 @@ func (s *MAPISERVER) TestCmd(c *C) {
 	c.Assert(strings.Contains(err.Error(), "not ready"), Equals, true)
 	srv.state = STATE_READY
 	//no response no error
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	srv.conn.netConn = fconn.(net.Conn)
 	willBePutToFakeConn := ""
 	response, err := srv.Cmd(willBePutToFakeConn)
@@ -209,7 +209,7 @@ func (s *MAPISERVER) TestCmd(c *C) {
 	well := []string{MSG_Q, MSG_HEADER, MSG_TUPLE}
 	for _,v := range well {
 		willBePutToFakeConn = string(v) + "anyTestResponse"
-		fconn = NewFakeConn()
+		fconn = newFakeConn()
 		response, err = srv.Cmd(willBePutToFakeConn)
 		c.Assert(err, IsNil)
 		c.Assert(response, Equals, willBePutToFakeConn)
@@ -217,7 +217,7 @@ func (s *MAPISERVER) TestCmd(c *C) {
 	//response error message
 	expErrMsg := "expected error message"
 	willBePutToFakeConn = string(MSG_ERROR) + expErrMsg
-	fconn = NewFakeConn()
+	fconn = newFakeConn()
 	response, err = srv.Cmd(willBePutToFakeConn)
 	c.Assert(err, Not(IsNil))
 	c.Assert(strings.Contains(err.Error(), expErrMsg), Equals, true)

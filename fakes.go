@@ -14,7 +14,7 @@ type FakeConn interface {
 	ReturnErrorOnClose(b bool)
 }
 
-func NewFakeConn() FakeConn {
+func newFakeConn() FakeConn {
 	fc := new(fakeConn)
 	return fc
 }
@@ -65,4 +65,42 @@ func (f *fakeConn) Close() (err error) {
 		err = errors.New("error at close")
 	}
 	return
+}
+
+
+type fakeserver struct{
+	cs string
+	cr string
+	dc bool
+	conn
+}
+
+func newFakeServer() Server{
+	return new(fakeserver)
+}
+
+func (fs *fakeserver)Connect(hostname, port, username, password, database, language string, timeout time.Duration) error{
+	fs.setConn(hostname, port, username, password, database, language)
+	return nil
+}
+
+func (fs *fakeserver) setConn(hostname, port, username, password, database, language string) {
+	fs.hostname = hostname
+	fs.port = port
+	fs.username = username
+	fs.password = password
+	fs.database = database
+	fs.language = language
+	fs.netConn = newFakeConn().(net.Conn)
+	return
+}
+
+func (fs *fakeserver)Cmd(operation string) (response string, err error){
+	fs.cr = operation
+	return
+}
+
+func (fs *fakeserver)Disconnect() error{
+	fs.dc = true
+	return nil
 }
