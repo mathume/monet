@@ -67,19 +67,18 @@ func (f *fakeConn) Close() (err error) {
 	return
 }
 
-
-type fakeserver struct{
+type fakeserver struct {
 	cs string
 	cr string
 	dc bool
 	conn
 }
 
-func newFakeServer() Server{
+func newFakeServer() Server {
 	return new(fakeserver)
 }
 
-func (fs *fakeserver)Connect(hostname, port, username, password, database, language string, timeout time.Duration) error{
+func (fs *fakeserver) Connect(hostname, port, username, password, database, language string, timeout time.Duration) error {
 	fs.setConn(hostname, port, username, password, database, language)
 	return nil
 }
@@ -95,12 +94,21 @@ func (fs *fakeserver) setConn(hostname, port, username, password, database, lang
 	return
 }
 
-func (fs *fakeserver)Cmd(operation string) (response string, err error){
+func (fs *fakeserver) Cmd(operation string) (response string, err error) {
 	fs.cr = operation
 	return
 }
 
-func (fs *fakeserver)Disconnect() error{
+func (fs *fakeserver) Disconnect() error {
 	fs.dc = true
 	return nil
+}
+
+type fakeMConn struct {
+	MConn
+	query string
+}
+
+func (c *fakeMConn) exec(query string) {
+	c.query = query
 }

@@ -1,4 +1,4 @@
-package drv
+package monet
 
 import (
 	"database/sql"
@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"monet"
 	"os"
 	"strconv"
 	"strings"
@@ -22,13 +21,14 @@ const (
 )
 
 var (
-	ErrConnString             = errors.New("The given connection string wasn't valid.")
-	ErrNumInput               = errors.New("The number of arguments isn't equal to the number of placeholders.")
-	Logger        *log.Logger = log.New(os.Stdout, "monet/drv ", log.LstdFlags)
+	ErrConnString = errors.New("The given connection string wasn't valid.")
+	ErrNumInput   = errors.New("The number of arguments isn't equal to the number of placeholders.")
 )
 
 func init() {
 	sql.Register(DRV_NAME, &MDriver{})
+	Logger = log.New(os.Stdout, "monet/drv ", log.LstdFlags)
+
 }
 
 func ConnectionString(hostname, port, username, password, database string, timeout time.Duration) string {
@@ -40,7 +40,7 @@ type MDriver struct {
 
 func (d *MDriver) Open(MConnString string) (driver.Conn, error) {
 	c := new(MConn)
-	c.srv = monet.NewServer()
+	c.srv = NewServer()
 	s := strings.Split(MConnString, SEP)
 	Logger.Println(MConnString)
 
@@ -56,7 +56,7 @@ func (d *MDriver) Open(MConnString string) (driver.Conn, error) {
 }
 
 type MConn struct {
-	srv monet.Server
+	srv Server
 }
 
 func (c *MConn) Prepare(query string) (driver.Stmt, error) {
@@ -189,12 +189,12 @@ func (r *MResult) exec(operation string) error {
 	lines := strings.Split(res, "\n")
 	first := lines[0]
 
-	for strings.HasPrefix(first, monet.MSG_INFO) {
+	for strings.HasPrefix(first, MSG_INFO) {
 		lines = lines[1:]
 		first = lines[0]
 	}
 	switch {
-	case strings.HasPrefix(res, monet.MSG_QUPDATE):
+	case strings.HasPrefix(res, MSG_QUPDATE):
 		sai := SplitWS(first[2:])
 		r.ra, err = strconv.ParseInt(sai[0], 10, 64)
 		r.lid, err = strconv.ParseInt(sai[1], 10, 64)
@@ -202,13 +202,13 @@ func (r *MResult) exec(operation string) error {
 			return err
 		}
 		return nil
-	case strings.HasPrefix(res, monet.MSG_QSCHEMA):
+	case strings.HasPrefix(res, MSG_QSCHEMA):
 		return nil
-	case strings.HasPrefix(res, monet.MSG_QTRANS):
+	case strings.HasPrefix(res, MSG_QTRANS):
 		return nil
-	case strings.HasPrefix(res, monet.MSG_PROMPT):
+	case strings.HasPrefix(res, MSG_PROMPT):
 		return nil
-	case strings.HasPrefix(res, monet.MSG_ERROR):
+	case strings.HasPrefix(res, MSG_ERROR):
 		return errors.New(first[1:])
 	}
 
@@ -251,40 +251,40 @@ func (r *MRows) query(operation string) error {
 	lines := strings.Split(res, "\n")
 	first := lines[0]
 
-	for strings.HasPrefix(first, monet.MSG_INFO) {
+	for strings.HasPrefix(first, MSG_INFO) {
 		lines = lines[1:]
 		first = lines[0]
 	}
 
 	rows := make([][]driver.Value, 0)
 	switch {
-	case strings.HasPrefix(first, monet.MSG_QTABLE):
+	case strings.HasPrefix(first, MSG_QTABLE):
 		meta := SplitWS(first[2:])
 
 		for _, l := range lines[1:] {
 			switch {
-			case strings.HasPrefix(l, monet.MSG_HEADER):
+			case strings.HasPrefix(l, MSG_HEADER):
 				di := strings.Split(l[1:], "#")
 				if di[1] == "name" {
 					dd := strings.Split(di[0], ",")
 					r.cols = append(r.cols, dd...)
 				}
-			case strings.HasPrefix(l, monet.MSG_PROMPT):
+			case strings.HasPrefix(l, MSG_PROMPT):
 				r.query_id = meta[0]
 				r.rows = rows
 				r.offset = 0
 				r.rcou, _ = strconv.ParseInt(meta[1], 10, -1)
 				return nil
-			case strings.HasPrefix(l, monet.MSG_TUPLE):
+			case strings.HasPrefix(l, MSG_TUPLE):
 				rows = append(rows, r.parse(l))
 			}
 		}
-	case strings.HasPrefix(first, monet.MSG_QBLOCK):
+	case strings.HasPrefix(first, MSG_QBLOCK):
 		for _, l := range lines[1:] {
 			switch {
-			case strings.HasPrefix(l, monet.MSG_TUPLE):
+			case strings.HasPrefix(l, MSG_TUPLE):
 				rows = append(rows, r.parse(l))
-			case strings.HasPrefix(l, monet.MSG_PROMPT):
+			case strings.HasPrefix(l, MSG_PROMPT):
 				r.rows = rows
 				return nil
 			}
