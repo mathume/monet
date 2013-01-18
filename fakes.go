@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"time"
+	"database/sql/driver"
 )
 
 type FakeConn interface {
@@ -105,10 +106,55 @@ func (fs *fakeserver) Disconnect() error {
 }
 
 type fakeMConn struct {
-	MConn
+	stmt driver.Stmt
+	err error
 	query string
+	isClosed bool
+	tx driver.Tx
 }
 
 func (c *fakeMConn) exec(query string) {
 	c.query = query
+}
+
+func (c *fakeMConn)Prepare(query string) (driver.Stmt, error){
+	c.query = query
+	return c.stmt, err
+}
+
+func (c *fakeMConn)Close() error{
+	c.isClosed = true
+	return c.err
+}
+
+func (c *fakeMConn)Begin()(driver.Tx, error){
+	return c.tx, c.err
+}
+
+type fakeMStmt struct {
+	numInput int
+	result driver.Result
+	err error
+	args []driver.Value
+	rows driver.Rows
+	isClosed bool
+}
+
+func (fms *fakeMStmt)Close() error{
+	fms.isClosed = true
+	return fms.err
+}
+
+func (fms *fakeMStmt)NumInput()int{
+	return fms.numInput
+}
+
+func (fms *fakeMStmt)Exec(args []driver.Value)(driver.Result, error){
+	fms.args = args
+	return fms.result, fms.err
+}
+
+func (fms *fakeMStmt)Query(args []driver.Value)(driver.Rows, error){
+	fms.args = args
+	return fms.rows, fms.err
 }

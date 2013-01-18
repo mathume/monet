@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"time"
-//	"io"
+	"errors"
 	. "launchpad.net/gocheck"
 )
 
@@ -46,6 +46,15 @@ func (d *DRIVER)TestStrip(c *C){
 	c.Log(s)
 	c.Assert(len(ss), Equals, 6)
 	c.Assert(s, Equals, "abcdef");
+}
+
+func (d *DRIVER)TestLastInsertId(c *C){
+	r := createMResult(new(fakeMConn).(MConn))
+	r.lid = 1
+	err := errors.New("any")
+	l, e := r.LastInsertId()
+	c.Assert(l, Equals, 1)
+	c.Assert(l, Matches, "any")
 }
 
 type DRVLIVE struct{}
