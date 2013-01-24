@@ -25,19 +25,23 @@ func getConnFakeServer() (*mconn, fakeServer) {
 	return con, fs
 }
 
+func (d *DRIVER) TestNewTx(c *C) {
+	c.Assert(newTx(new(mconn)), Not(IsNil))
+}
+
 func (d *DRIVER) TestBeginSendsStartTransaction(c *C) {
 	con, fs := getConnFakeServer()
 	con.Begin()
-	c.Assert(fs.Received(), Equals, "sSTART TRANSACTION;")
+	c.Assert(contains(fs.Received(), "sSTART TRANSACTION;"), Equals, true)
 }
 
 func (d *DRIVER) TestBeginCanOnlyBeCalledOnce(c *C) {
 	con, _ := getConnFakeServer()
-	tx, err := con.Begin()
+	t, err := con.Begin()
 	c.Assert(err, IsNil)
-	c.Assert(tx, Not(IsNil))
-	tx, err = con.Begin()
-	c.Assert(tx, IsNil)
+	c.Assert(t, Not(IsNil))
+	t, err = con.Begin()
+	c.Assert(t, IsNil)
 	c.Assert(err, Not(IsNil))
 }
 
@@ -52,4 +56,51 @@ func (d *DRIVER) TestCloseWillNotRollbackWithoutTx(c *C) {
 	con, fs := getConnFakeServer()
 	con.Close()
 	c.Assert(contains(fs.Received(), "sROLLBACK;"), Equals, false)
+}
+
+func (d *DRIVER) TestCommitIsReceived(c *C){
+	con, fs := getConnFakeServer()
+	t, _ := con.Begin()
+	t.Commit()
+	c.Assert(contains(fs.Received(), "sCOMMIT;"), Equals, true)
+}
+
+func (d *DRIVER) TestCanBeginAfterCommit(c *C){
+	con, _ := getConnFakeServer()
+	t, _ := con.Begin()
+	t.Commit()
+	_, err := con.Begin()
+	c.Assert(err, IsNil)
+}
+
+func (d *DRIVER) TestCanBeginAfterRollback(c *C){
+	con, _ := getConnFakeServer()
+	t, _ := con.Begin()
+	t.Rollback()
+	_, err := con.Begin()
+	c.Assert(err, IsNil)
+}
+
+func (d *DRIVER) TestCommitClears(c *C) {
+	con, _ := getConnFakeServer()
+	t, _ := con.Begin()
+	t.Commit()
+	c.Assert(con.t, IsNil)
+}
+
+func (d *DRIVER) TestRollbackClears(c *C) {
+	con, _ := getConnFakeServer()
+	t, _ := con.Begin()
+	t.Rollback()
+	c.Assert(con.t, IsNil)
+}
+
+func (d *DRIVER) TestClear(c *C) {
+	t := new(tx)
+	con := new(mconn)
+	t.c = con
+	t.c.t = t
+	t.clear()
+	c.Assert(t.c, IsNil)
+	c.Assert(con.t, IsNil)
 }
