@@ -17,8 +17,8 @@ func (m *mconn) Begin() (driver.Tx, error) {
 		return nil, errors.New("There's currently another transaction. End that first or open a new connection.")
 	}
 	m.t = newTx(m)
-	m.srv.Cmd("sSTART TRANSACTION;")
-	return m.t, nil
+	_, err := m.cmd("START TRANSACTION")
+	return m.t, err
 }
 
 func (m *mconn) Close() error {
@@ -32,4 +32,8 @@ func (m *mconn) Close() error {
 
 func (m *mconn) Prepare(query string) (driver.Stmt, error) {
 	return nil, nImpl
+}
+
+func (m *mconn) cmd(operation string) (response string, err error){
+	return m.srv.Cmd("s" + operation + ";")
 }

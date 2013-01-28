@@ -9,13 +9,13 @@ type tx struct{
 }
 
 func (t *tx)Commit() error {
-	t.c.srv.Cmd("sCOMMIT;")
+	t.c.cmd("COMMIT")
 	t.clear()
 	return nil
 }
 
 func (t *tx)Rollback() error {
-	t.c.srv.Cmd("sROLLBACK;")
+	t.c.cmd("ROLLBACK")
 	t.clear()
 	return nil
 }
