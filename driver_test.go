@@ -1,9 +1,12 @@
 package monet
 
 import (
+	"errors"
 	. "launchpad.net/gocheck"
 	"log"
 )
+
+var TestErr error = errors.New("TestErr")
 
 type DRIVER struct{}
 
@@ -18,11 +21,19 @@ func (d *DRIVER) SetUpTest(c *C) {
 	logger.Clear()
 }
 
-func getConnFakeServer() (*mconn, fakeServer) {
+func getconnfs(err error) (*mconn, fakeServer) {
 	con := new(mconn)
-	fs := newFakeServer()
+	fs := newFakeServer(err)
 	con.srv = fs.(Server)
 	return con, fs
+}
+
+func getConnFakeServer() (*mconn, fakeServer) {
+	return getconnfs(nil)
+}
+
+func getConnFakeServerWithError() (*mconn, fakeServer) {
+	return getconnfs(TestErr)
 }
 
 func (d *DRIVER) TestNewTx(c *C) {
@@ -58,49 +69,80 @@ func (d *DRIVER) TestCloseWillNotRollbackWithoutTx(c *C) {
 	c.Assert(contains(fs.Received(), "sROLLBACK;"), Equals, false)
 }
 
-func (d *DRIVER) TestCommitIsReceived(c *C){
+func (d *DRIVER) TestCloseDisconnects(c *C) {
 	con, fs := getConnFakeServer()
-	t, _ := con.Begin()
-	t.Commit()
+	c.Assert(fs.DisconnectHasBeenCalled(), Equals, false)
+	con.Close()
+	c.Assert(fs.DisconnectHasBeenCalled(), Equals, true)
+}
+
+func (d *DRIVER) TestClosePipesError(c *C) {
+	con, _ := getConnFakeServerWithError()
+	c.Assert(con.Close(), Equals, TestErr)
+}
+
+func (d *DRIVER) TestCommitIsReceived(c *C) {
+	con, fs := getConnFakeServer()
+	tx, _ := con.Begin()
+	tx.Commit()
 	c.Assert(contains(fs.Received(), "sCOMMIT;"), Equals, true)
 }
 
-func (d *DRIVER) TestCanBeginAfterCommit(c *C){
+func (d *DRIVER) TestCanBeginAfterCommit(c *C) {
 	con, _ := getConnFakeServer()
-	t, _ := con.Begin()
-	t.Commit()
+	tx, _ := con.Begin()
+	tx.Commit()
 	_, err := con.Begin()
 	c.Assert(err, IsNil)
 }
 
-func (d *DRIVER) TestCanBeginAfterRollback(c *C){
+func (d *DRIVER) TestCanBeginAfterRollback(c *C) {
 	con, _ := getConnFakeServer()
-	t, _ := con.Begin()
-	t.Rollback()
+	tx, _ := con.Begin()
+	tx.Rollback()
 	_, err := con.Begin()
 	c.Assert(err, IsNil)
 }
 
 func (d *DRIVER) TestCommitClears(c *C) {
 	con, _ := getConnFakeServer()
-	t, _ := con.Begin()
-	t.Commit()
-	c.Assert(con.t, IsNil)
+	tx, _ := con.Begin()
+	tx.Commit()
+	c.Assert(con.tx, IsNil)
 }
 
 func (d *DRIVER) TestRollbackClears(c *C) {
 	con, _ := getConnFakeServer()
-	t, _ := con.Begin()
-	t.Rollback()
-	c.Assert(con.t, IsNil)
+	tx, _ := con.Begin()
+	tx.Rollback()
+	c.Assert(con.tx, IsNil)
 }
 
 func (d *DRIVER) TestClear(c *C) {
-	t := new(tx)
 	con := new(mconn)
-	t.c = con
-	t.c.t = t
-	t.clear()
-	c.Assert(t.c, IsNil)
-	c.Assert(con.t, IsNil)
+	tx := new(mtx)
+	con.tx = tx
+	tx.c = con
+	tx.clear()
+	c.Assert(tx.c, IsNil)
+	c.Assert(con.tx, IsNil)
+}
+
+func (d *DRIVER) TestCloseStmt(c *C) {
+	s := newStmt(new(mconn), "anyQuery")
+	c.Assert(s.(*mstmt).closed, Equals, false)
+	c.Assert(s.(*mstmt).c, Not(IsNil))
+	for i := 0; i < 2; i++ {
+		c.Assert(s.Close(), IsNil)
+		c.Assert(s.(*mstmt).closed, Equals, true)
+		c.Assert(s.(*mstmt).c, IsNil)
+	}
+}
+
+func (d *DRIVER) TestPrepareStmtSetsQuery(c *C) {
+	con, _ := getConnFakeServer()
+	fmtquery := "SELECT COUNT(*) FROM %s"
+	stmt, err := con.Prepare(fmtquery)
+	c.Assert(err, IsNil)
+	c.Assert(stmt.(*mstmt).q, Equals, fmtquery)
 }

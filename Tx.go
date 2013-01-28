@@ -4,29 +4,29 @@ import (
 	"database/sql/driver"
 )
 
-type tx struct{
+type mtx struct{
 	c *mconn
 }
 
-func (t *tx)Commit() error {
+func (t *mtx)Commit() error {
 	t.c.cmd("COMMIT")
 	t.clear()
 	return nil
 }
 
-func (t *tx)Rollback() error {
+func (t *mtx)Rollback() error {
 	t.c.cmd("ROLLBACK")
 	t.clear()
 	return nil
 }
 
-func (t *tx)clear(){
-	t.c.t = nil
-	t.c  = nil
+func (t *mtx)clear(){
+	t.c.clear()
+	t.c = nil
 }
 
 func newTx(c *mconn) driver.Tx{
-	t := new(tx)
+	t := new(mtx)
 	t.c = c
 	return t
 }

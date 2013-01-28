@@ -7,17 +7,20 @@ import (
 type fakeServer interface {
 	Server
 	Received() []string
+	DisconnectHasBeenCalled() bool
 }
 
-func newFakeServer() fakeServer {
-	return new(fsrv)
+func newFakeServer(err error) fakeServer {
+	f := new(fsrv)
+	f.err = err
+	return f
 }
 
 type fsrv struct {
 	received  []string
 	err       error
 	response  string
-	connected bool
+	disconnected bool
 	conn
 }
 
@@ -37,10 +40,14 @@ func (fs *fsrv) Connect(hostname, port, username, password, database, language s
 }
 
 func (fs *fsrv) Disconnect() error {
-	fs.connected = false
+	fs.disconnected = true
 	return fs.err
 }
 
 func (fs *fsrv) Received() []string {
 	return fs.received
+}
+
+func (fs *fsrv) DisconnectHasBeenCalled() bool{
+	return fs.disconnected
 }
