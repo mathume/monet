@@ -166,6 +166,13 @@ func (d *DRIVER)TestConvertFloat64(c *C){
 	c.Assert(s, Equals, "1.2")
 }
 
+func (d *DRIVER)TestGoifyFloat64(c *C){
+	any := "12e-200"
+	s, err := goify(any, FLOAT)
+	c.Assert(err, IsNil)
+	c.Assert(s.(float64), Equals, float64(12e-200))
+}
+
 func (d *DRIVER)TestConvertString(c *C){
 	var any string = "string"
 	s, err := monetize(any)
@@ -173,11 +180,25 @@ func (d *DRIVER)TestConvertString(c *C){
 	c.Assert(s, Equals, "'" + any + "'")
 }
 
+func (d *DRIVER)TestGoifyString(c *C){
+	any := "'string'"
+	s, err := goify(any, CHAR)
+	c.Assert(err, IsNil)
+	c.Assert(s.(string), Equals, "string")
+}
+
 func (d *DRIVER)TestConvertInt64(c *C){
 	var any int64 = 12
 	s, err := monetize(any)
 	c.Assert(err, IsNil)
 	c.Assert(s, Equals, "12")
+}
+
+func (d *DRIVER)TestGoifyInt64(c *C){
+	any :=  "12345"
+	s, err := goify(any, INT)
+	c.Assert(err, IsNil)
+	c.Assert(s.(int64), Equals, int64(12345))
 }
 
 func (d *DRIVER)TestConvertBool(c *C){
@@ -191,11 +212,32 @@ func (d *DRIVER)TestConvertBool(c *C){
 	c.Assert(s, Equals, "true")
 }
 
+func (d *DRIVER)TestGoifyBool(c *C){
+	f := "false"
+	s, err := goify(f, BOOLEAN)
+	c.Assert(err, IsNil)
+	c.Assert(s.(bool), Equals, false)
+}
+
 func (d *DRIVER)TestConvertByteSlice(c *C){
 	var anyWithBackSlashes []byte =  []byte("a\\b'c")
 	s, err := monetize(anyWithBackSlashes)
 	c.Assert(err, IsNil)
 	c.Assert(s, Equals, "'a\\\\b\\'c'")
+}
+
+func (d *DRIVER)TestGoifyByteSliceBLOB(c *C){
+	b := "'a\\\\b\\'c\\''"
+	s, err := goify(b, BLOB)
+	c.Assert(err, IsNil)
+	c.Assert(s.([]byte), DeepEquals, []byte("a\\b'c'"))
+}
+
+func (d *DRIVER)TestGoifyByteSliceCLOB(c *C){
+	b := "'a\\\\b\\'c\\''"
+	s, err := goify(b, CLOB)
+	c.Assert(err, IsNil)
+	c.Assert(s.(string), DeepEquals, "a\\b'c'")
 }
 
 func (d *DRIVER)TestConvertTime(c *C){
@@ -205,8 +247,34 @@ func (d *DRIVER)TestConvertTime(c *C){
 	c.Assert(s, Equals, "'" + TimeLayout + "'")
 }
 
+func (d *DRIVER)TestGoifyTime(c *C){
+	t := "'" + TimeLayout + "'"
+	s, err := goify(t, TIMESTAMP)
+	c.Assert(err, IsNil)
+	c.Assert(s.(time.Time).Format(TimeLayout), Equals, TimeLayout)
+}
+
+func (d *DRIVER)TestConvertNil(c *C){
+	s, err := monetize(nil)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "NULL")
+}
+
+func (d *DRIVER)TestGofiyNil(c *C){
+	n := "NULL"
+	s, err := goify(n, "ANYTYPECODE")
+	c.Assert(err, IsNil)
+	c.Assert(s, IsNil)
+}
+
 func (d *DRIVER)TestEscape(c *C){
-	s := "a\\b'c"
+	s := "a\\b'c'"
 	e := escape(s)
-	c.Assert(e, Equals, "'a\\\\b\\'c'")
+	c.Assert(e, Equals, "'a\\\\b\\'c\\''")
+}
+
+func (d *DRIVER)TestUnescape(c *C){
+	s := "'a\\\\b\\'c\\''"
+	e := unescape(s)
+	c.Assert(e, Equals, "a\\b'c'")
 }

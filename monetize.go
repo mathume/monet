@@ -2,17 +2,18 @@ package monet
 
 import (
 	"database/sql/driver"
-	"time"
-	"strings"
-	"fmt"
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 )
 
 const TimeLayout = "2006-01-02 15:04:05"
 
-type MonetValue string
-
-func monetize(value driver.Value) (s driver.Value, err error){
+func monetize(value driver.Value) (s string, err error) {
+	if value == nil {
+		return "NULL", nil
+	}
 	switch t := value.(type) {
 	case int64:
 		s = fmt.Sprintf("%d", t)
@@ -32,7 +33,7 @@ func monetize(value driver.Value) (s driver.Value, err error){
 	return s, err
 }
 
-func escape(s string) string{
+func escape(s string) string {
 	s = strings.Replace(s, "\\", "\\\\", -1)
 	s = strings.Replace(s, "'", "\\'", -1)
 	return fmt.Sprintf("'%s'", s)
