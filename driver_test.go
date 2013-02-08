@@ -4,6 +4,7 @@ import (
 	"errors"
 	. "launchpad.net/gocheck"
 	"log"
+	"time"
 )
 
 var TestErr error = errors.New("TestErr")
@@ -156,4 +157,56 @@ func (d *DRIVER)TestResult(c *C){
 	ra, e2 := r.RowsAffected()
 	c.Assert(ra, Equals, rr.ra)
 	c.Assert(e2, Equals, rr.err)
+}
+
+func (d *DRIVER)TestConvertFloat64(c *C){
+	var any float64 = 1.2
+	s, err := monetize(any)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "1.2")
+}
+
+func (d *DRIVER)TestConvertString(c *C){
+	var any string = "string"
+	s, err := monetize(any)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "'" + any + "'")
+}
+
+func (d *DRIVER)TestConvertInt64(c *C){
+	var any int64 = 12
+	s, err := monetize(any)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "12")
+}
+
+func (d *DRIVER)TestConvertBool(c *C){
+	var f bool = false
+	s, err := monetize(f)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "false")
+	var t bool = true
+	s, err = monetize(t)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "true")
+}
+
+func (d *DRIVER)TestConvertByteSlice(c *C){
+	var anyWithBackSlashes []byte =  []byte("a\\b'c")
+	s, err := monetize(anyWithBackSlashes)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "'a\\\\b\\'c'")
+}
+
+func (d *DRIVER)TestConvertTime(c *C){
+	var t time.Time = time.Date(2006, time.January, 2, 15, 4, 5, 0, time.UTC)
+	s, err := monetize(t)
+	c.Assert(err, IsNil)
+	c.Assert(s, Equals, "'" + TimeLayout + "'")
+}
+
+func (d *DRIVER)TestEscape(c *C){
+	s := "a\\b'c"
+	e := escape(s)
+	c.Assert(e, Equals, "'a\\\\b\\'c'")
 }
