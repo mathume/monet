@@ -146,3 +146,14 @@ func (d *DRIVER) TestPrepareStmtSetsQuery(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(stmt.(*mstmt).q, Equals, fmtquery)
 }
+
+func (d *DRIVER)TestResult(c *C){
+	r := newResult(1, 2, TestErr)
+	rr := r.(*result)
+	liid, e1 := r.LastInsertId()
+	c.Assert(liid, Equals, rr.liid)
+	c.Assert(e1, Equals, rr.err)
+	ra, e2 := r.RowsAffected()
+	c.Assert(ra, Equals, rr.ra)
+	c.Assert(e2, Equals, rr.err)
+}
