@@ -35,6 +35,10 @@ func (m *mconn) Prepare(fmtquery string) (driver.Stmt, error) {
 }
 
 func (m *mconn) cmd(operation string) (response string, err error){
+	if m.srv == nil {
+		response, err =  "", driver.ErrBadConn
+		return
+	}
 	return m.srv.Cmd("s" + operation + ";")
 }
 

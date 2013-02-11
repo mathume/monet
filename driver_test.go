@@ -1,9 +1,11 @@
 package monet
 
 import (
+	"database/sql/driver"
 	"errors"
 	. "launchpad.net/gocheck"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -148,7 +150,7 @@ func (d *DRIVER) TestPrepareStmtSetsQuery(c *C) {
 	c.Assert(stmt.(*mstmt).q, Equals, fmtquery)
 }
 
-func (d *DRIVER)TestResult(c *C){
+func (d *DRIVER) TestResult(c *C) {
 	r := newResult(1, 2, TestErr)
 	rr := r.(*result)
 	liid, e1 := r.LastInsertId()
@@ -159,49 +161,49 @@ func (d *DRIVER)TestResult(c *C){
 	c.Assert(e2, Equals, rr.err)
 }
 
-func (d *DRIVER)TestConvertFloat64(c *C){
+func (d *DRIVER) TestConvertFloat64(c *C) {
 	var any float64 = 1.2
 	s, err := monetize(any)
 	c.Assert(err, IsNil)
 	c.Assert(s, Equals, "1.2")
 }
 
-func (d *DRIVER)TestGoifyFloat64(c *C){
+func (d *DRIVER) TestGoifyFloat64(c *C) {
 	any := "12e-200"
 	s, err := goify(any, FLOAT)
 	c.Assert(err, IsNil)
 	c.Assert(s.(float64), Equals, float64(12e-200))
 }
 
-func (d *DRIVER)TestConvertString(c *C){
+func (d *DRIVER) TestConvertString(c *C) {
 	var any string = "string"
 	s, err := monetize(any)
 	c.Assert(err, IsNil)
-	c.Assert(s, Equals, "'" + any + "'")
+	c.Assert(s, Equals, "'"+any+"'")
 }
 
-func (d *DRIVER)TestGoifyString(c *C){
+func (d *DRIVER) TestGoifyString(c *C) {
 	any := "'string'"
 	s, err := goify(any, CHAR)
 	c.Assert(err, IsNil)
 	c.Assert(s.(string), Equals, "string")
 }
 
-func (d *DRIVER)TestConvertInt64(c *C){
+func (d *DRIVER) TestConvertInt64(c *C) {
 	var any int64 = 12
 	s, err := monetize(any)
 	c.Assert(err, IsNil)
 	c.Assert(s, Equals, "12")
 }
 
-func (d *DRIVER)TestGoifyInt64(c *C){
-	any :=  "12345"
+func (d *DRIVER) TestGoifyInt64(c *C) {
+	any := "12345"
 	s, err := goify(any, INT)
 	c.Assert(err, IsNil)
 	c.Assert(s.(int64), Equals, int64(12345))
 }
 
-func (d *DRIVER)TestConvertBool(c *C){
+func (d *DRIVER) TestConvertBool(c *C) {
 	var f bool = false
 	s, err := monetize(f)
 	c.Assert(err, IsNil)
@@ -212,69 +214,105 @@ func (d *DRIVER)TestConvertBool(c *C){
 	c.Assert(s, Equals, "true")
 }
 
-func (d *DRIVER)TestGoifyBool(c *C){
+func (d *DRIVER) TestGoifyBool(c *C) {
 	f := "false"
 	s, err := goify(f, BOOLEAN)
 	c.Assert(err, IsNil)
 	c.Assert(s.(bool), Equals, false)
 }
 
-func (d *DRIVER)TestConvertByteSlice(c *C){
-	var anyWithBackSlashes []byte =  []byte("a\\b'c")
+func (d *DRIVER) TestConvertByteSlice(c *C) {
+	var anyWithBackSlashes []byte = []byte("a\\b'c")
 	s, err := monetize(anyWithBackSlashes)
 	c.Assert(err, IsNil)
 	c.Assert(s, Equals, "'a\\\\b\\'c'")
 }
 
-func (d *DRIVER)TestGoifyByteSliceBLOB(c *C){
+func (d *DRIVER) TestGoifyByteSliceBLOB(c *C) {
 	b := "'a\\\\b\\'c\\''"
 	s, err := goify(b, BLOB)
 	c.Assert(err, IsNil)
 	c.Assert(s.([]byte), DeepEquals, []byte("a\\b'c'"))
 }
 
-func (d *DRIVER)TestGoifyByteSliceCLOB(c *C){
+func (d *DRIVER) TestGoifyByteSliceCLOB(c *C) {
 	b := "'a\\\\b\\'c\\''"
 	s, err := goify(b, CLOB)
 	c.Assert(err, IsNil)
 	c.Assert(s.(string), DeepEquals, "a\\b'c'")
 }
 
-func (d *DRIVER)TestConvertTime(c *C){
+func (d *DRIVER) TestConvertTime(c *C) {
 	var t time.Time = time.Date(2006, time.January, 2, 15, 4, 5, 0, time.UTC)
 	s, err := monetize(t)
 	c.Assert(err, IsNil)
-	c.Assert(s, Equals, "'" + TimeLayout + "'")
+	c.Assert(s, Equals, "'"+TimeLayout+"'")
 }
 
-func (d *DRIVER)TestGoifyTime(c *C){
+func (d *DRIVER) TestGoifyTime(c *C) {
 	t := "'" + TimeLayout + "'"
 	s, err := goify(t, TIMESTAMP)
 	c.Assert(err, IsNil)
 	c.Assert(s.(time.Time).Format(TimeLayout), Equals, TimeLayout)
 }
 
-func (d *DRIVER)TestConvertNil(c *C){
+func (d *DRIVER) TestConvertNil(c *C) {
 	s, err := monetize(nil)
 	c.Assert(err, IsNil)
 	c.Assert(s, Equals, "NULL")
 }
 
-func (d *DRIVER)TestGofiyNil(c *C){
+func (d *DRIVER) TestGofiyNil(c *C) {
 	n := "NULL"
 	s, err := goify(n, "ANYTYPECODE")
 	c.Assert(err, IsNil)
 	c.Assert(s, IsNil)
 }
 
-func (d *DRIVER)TestEscape(c *C){
+func (d *DRIVER) TestEscape(c *C) {
 	s := "a\\b'c'"
 	e := escape(s)
 	c.Assert(e, Equals, "'a\\\\b\\'c\\''")
 }
 
-func (d *DRIVER)TestUnescape(c *C){
+func (d *DRIVER) TestUnescape(c *C) {
 	s := "'a\\\\b\\'c\\''"
 	e := unescape(s)
 	c.Assert(e, Equals, "a\\b'c'")
+}
+
+func (d *DRIVER) TestClosedStmtCannotExec(c *C) {
+	s := newStmt(new(mconn), "anyqry")
+	s.Close()
+	_, err := s.Exec([]driver.Value{"anyargs"})
+	c.Assert(err, Not(IsNil))
+	c.Assert(err, ErrorMatches, "Stmt is closed.")
+}
+
+func (d *DRIVER) TestStmtBindChecksNoOfArguments(c *C) {
+	s := newStmt(new(mconn), "query with on %s")
+	zeroL := make([]driver.Value, 0)
+	tooL := []driver.Value{1, 2}
+	_, err := s.(*mstmt).bind(zeroL)
+	c.Assert(err, Not(IsNil))
+	c.Assert(strings.Contains(err.Error(), "Wrong number of args."), Equals, true)
+	_, err = s.(*mstmt).bind(tooL)
+	c.Assert(err, Not(IsNil))
+	c.Assert(strings.Contains(err.Error(), "Wrong number of args."), Equals, true)
+}
+
+func (d *DRIVER) TestStmtBind(c *C) {
+	s := newStmt(new(mconn), "query with monetized time=%s")
+	exact := time.Date(2013, time.February, 11, 0, 0, 0, 0, time.UTC)
+	qry, err := s.(*mstmt).bind([]driver.Value{exact})
+	c.Assert(err, IsNil)
+	c.Assert(qry, Equals, "query with monetized time='2013-02-11 00:00:00'")
+}
+
+func (d *DRIVER)TestStmtExecCallsConnCmd(c *C){
+	co, sr := getConnFakeServer()
+	s := newStmt(co, "time=%s")
+	exact := time.Date(2013, time.February, 11, 0, 0, 0, 0, time.UTC)
+	s.Exec([]driver.Value{exact})
+	c.Assert(sr.(*fsrv).received[0], Equals, "stime='2013-02-11 00:00:00';")
 }
