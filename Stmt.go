@@ -9,6 +9,7 @@ import (
 
 const (
 	SQLPlaceholder = "%s"
+	RowsSize       = 100
 )
 
 type mstmt struct {
@@ -41,8 +42,24 @@ func (s *mstmt) Exec(args []driver.Value) (driver.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	_, err = s.c.cmd(qry)
+	res, err := s.c.cmd(qry)
+	if err != nil {
+		return nil, err
+	}
+	return s.getResult(res)
+}
+
+func (s *mstmt) getResult(res string) (driver.Result, error) {
+	//ll := s.skipInfo(res)
 	return nil, nImpl
+}
+
+func (s *mstmt) skipInfo(res string) (lines []string){
+	ll := strings.Split(res, "\n")
+	for strings.HasPrefix(ll[0], MSG_INFO) {
+		ll = ll[1:len(ll)-1]
+	}
+	return ll
 }
 
 func (s *mstmt) bind(args []driver.Value) (query string, err error) {

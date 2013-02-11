@@ -13,6 +13,10 @@ var TestErr error = errors.New("TestErr")
 
 type DRIVER struct{}
 
+const (
+	NO_MSG_INFO = "NO_MSG_INFO"
+)
+
 var _ = Suite(&DRIVER{})
 
 func (d *DRIVER) SetUpSuite(c *C) {
@@ -315,4 +319,21 @@ func (d *DRIVER)TestStmtExecCallsConnCmd(c *C){
 	exact := time.Date(2013, time.February, 11, 0, 0, 0, 0, time.UTC)
 	s.Exec([]driver.Value{exact})
 	c.Assert(sr.(*fsrv).received[0], Equals, "stime='2013-02-11 00:00:00';")
+}
+
+func (d *DRIVER)TestStmtSkipInfo(c *C){
+	r := MSG_INFO + "any\n" + NO_MSG_INFO + "other\n"
+	s := new(mstmt)
+	ll := s.skipInfo(r)
+	c.Assert(ll, Not(IsNil))
+	c.Assert(len(ll) > 0, Equals, true)
+	c.Assert(ll[0], Equals, NO_MSG_INFO + "other")
+}
+
+func (d *DRIVER)TestStmtResultReturnsError(c *C){
+	errMsg := "error message"
+	r := MSG_ERROR + errMsg
+	_, err := new(mstmt).getResult(r)
+	c.Assert(err, Not(IsNil))
+	c.Assert(err.Error(), Equals, "error message")
 }
