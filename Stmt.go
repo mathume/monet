@@ -107,7 +107,7 @@ func (s *mstmt) stripws(l string) []string {
 }
 
 func (s *mstmt) bind(args []driver.Value) (query string, err error) {
-	if strings.Count(s.q, SQLPlaceholder) != len(args) {
+	if s.NumInput() != len(args) {
 		err = errors.New("Cannot bind args to query. Wrong number of args.")
 		return
 	}
@@ -120,7 +120,7 @@ func (s *mstmt) bind(args []driver.Value) (query string, err error) {
 }
 
 func (s *mstmt) NumInput() int {
-	panic(nImpl.Error())
+	return strings.Count(s.q, SQLPlaceholder)
 }
 
 func (s *mstmt) Query(args []driver.Value) (driver.Rows, error) {
