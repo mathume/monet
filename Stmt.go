@@ -83,6 +83,10 @@ func (s *mstmt) getResult(res string) (r driver.Result, err error) {
 
 func (s *mstmt) skipInfo(res string) (lines []string) {
 	ll := strings.Split(res, "\n")
+	return s.skipInfoL(ll)
+}
+
+func (s *mstmt) skipInfoL(ll []string) (lines []string) {
 	for strings.HasPrefix(ll[0], MSG_INFO) {
 		ll = ll[1:]
 	}
@@ -134,7 +138,7 @@ func (s *mstmt) Query(args []driver.Value) (driver.Rows, error) {
 	return s.getRows(res)
 }
 
-func (s *mstmt)getRows(res string)(driver.Rows, error){
+func (s *mstmt) getRows(res string) (driver.Rows, error) {
 	ll, err := s.skipCheckError(res)
 	if err != nil {
 		return nil, err
@@ -145,17 +149,22 @@ func (s *mstmt)getRows(res string)(driver.Rows, error){
 }
 
 // returns or err != nil or len(ll) > 0
-func (s *mstmt)skipCheckError(res string)(ll []string, err error){
+func (s *mstmt) skipCheckError(res string) (ll []string, err error) {
 	ll = s.skipInfo(res)
-	if len(ll) == 0 {
+	return s.checkError(ll)
+}
+
+func (s *mstmt) checkError(la []string) (ll []string, err error){
+	if len(la) == 0 {
 		return nil, errors.New("Result empty")
 	}
-	if strings.HasPrefix(ll[0], MSG_ERROR){
-		if len(ll[0]) == 1 {
+	if strings.HasPrefix(la[0], MSG_ERROR) {
+		if len(la[0]) == 1 {
 			err = errors.New("NO ERROR SPECS RECEIVED FROM SERVER")
 		} else {
-			err = errors.New(ll[0][1:])
+			err = errors.New(la[0][1:])
 		}
 	}
+	ll = la
 	return
 }
