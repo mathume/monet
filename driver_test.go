@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"time"
+	"strconv"
 )
 
 var TestErr error = errors.New("TestErr")
@@ -156,7 +157,7 @@ func (d *DRIVER) TestPrepareStmtSetsQuery(c *C) {
 
 func (d *DRIVER) TestResult(c *C) {
 	r := newResult(1, 2, TestErr)
-	rr := r.(*result)
+	rr := r.(*mresult)
 	liid, e1 := r.LastInsertId()
 	c.Assert(liid, Equals, rr.liid)
 	c.Assert(e1, Equals, rr.err)
@@ -336,4 +337,44 @@ func (d *DRIVER)TestStmtResultReturnsError(c *C){
 	_, err := new(mstmt).getResult(r)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err.Error(), Equals, "error message")
+}
+
+func (d *DRIVER)TestStmtResultReturnsResultNoRows(c *C){
+	m := []string{MSG_QTRANS, MSG_QSCHEMA}
+	for _, v := range m {
+		msg := v + "MSG"
+		r, err := new(mstmt).getResult(msg)
+		c.Assert(err, IsNil)
+		c.Assert(r, Equals, driver.ResultNoRows)
+	}
+}
+
+func (d *DRIVER)TestStrip(c *C){
+	s := "a b\tc\rd\ne \t\r\nf"
+	ss := new(mstmt).stripws(s)
+	c.Assert(len(ss), Equals, 6)
+	s = ""
+	for _,v := range ss {
+		s += string(v)
+		c.Log(string(v))
+	}
+	c.Log(s)
+	c.Assert(len(ss), Equals, 6)
+	c.Assert(s, Equals, "abcdef");
+}
+
+func (d *DRIVER)TestStmtResult(c *C){
+	var rowsaff int64 = 123456
+	var lastin int64 = 34
+	msg := MSG_QUPDATE + strconv.FormatInt(rowsaff, 10) + "\t" + strconv.FormatInt(lastin, 10)
+	c.Log(msg)
+	r, err := new(mstmt).getResult(msg)
+	c.Assert(err, IsNil)
+	c.Assert(r, Not(IsNil))
+	ra, err := r.RowsAffected()
+	c.Assert(err, IsNil)
+	c.Assert(ra, Equals, rowsaff)
+	liid, err := r.LastInsertId()
+	c.Assert(err, IsNil)
+	c.Assert(liid, Equals, lastin)
 }
