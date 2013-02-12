@@ -36,32 +36,32 @@ func (s *mstmt) Close() (err error) {
 }
 
 func (s *mstmt) Exec(args []driver.Value) (driver.Result, error) {
-	if s.closed {
-		return nil, errors.New("Stmt is closed.")
-	}
-	qry, err := s.bind(args)
-	if err != nil {
-		return nil, err
-	}
-	res, err := s.c.cmd(qry)
+	res, err := s.cmd(args)
 	if err != nil {
 		return nil, err
 	}
 	return s.getResult(res)
 }
 
+func (s *mstmt) cmd(args []driver.Value) (res string, err error) {
+	if s.closed {
+		err = errors.New("Stmt is closed.")
+		return
+	}
+	qry, err := s.bind(args)
+	if err != nil {
+		return
+	}
+	res, err = s.c.cmd(qry)
+	return
+}
+
 func (s *mstmt) getResult(res string) (r driver.Result, err error) {
-	ll := s.skipInfo(res)
-	if len(ll) == 0 {
-		return nil, errors.New("Result empty")
+	ll, err := s.skipCheckError(res)
+	if err != nil {
+		return
 	}
 	switch {
-	case strings.HasPrefix(ll[0], MSG_ERROR):
-		if len(ll[0]) == 1 {
-			 err = errors.New("NO ERROR SPECS RECEIVED FROM SERVER")
-		}else{
-			err = errors.New(ll[0][1:])
-		}
 	case strings.HasPrefix(ll[0], MSG_QTRANS), strings.HasPrefix(ll[0], MSG_QSCHEMA):
 		r = driver.ResultNoRows
 	case strings.HasPrefix(ll[0], MSG_QUPDATE):
@@ -124,5 +124,38 @@ func (s *mstmt) NumInput() int {
 }
 
 func (s *mstmt) Query(args []driver.Value) (driver.Rows, error) {
-	return nil, nImpl
+	if _, err := s.c.cmd("Xreply_size " + strconv.FormatInt(RowsSize, 10)); err != nil {
+		return nil, err
+	}
+	res, err := s.cmd(args)
+	if err != nil {
+		return nil, err
+	}
+	return s.getRows(res)
+}
+
+func (s *mstmt)getRows(res string)(driver.Rows, error){
+	ll, err := s.skipCheckError(res)
+	if err != nil {
+		return nil, err
+	}
+	r := newRows(s.c)
+	err = r.(*mrows).store(ll)
+	return r, err
+}
+
+// returns or err != nil or len(ll) > 0
+func (s *mstmt)skipCheckError(res string)(ll []string, err error){
+	ll = s.skipInfo(res)
+	if len(ll) == 0 {
+		return nil, errors.New("Result empty")
+	}
+	if strings.HasPrefix(ll[0], MSG_ERROR){
+		if len(ll[0]) == 1 {
+			err = errors.New("NO ERROR SPECS RECEIVED FROM SERVER")
+		} else {
+			err = errors.New(ll[0][1:])
+		}
+	}
+	return
 }

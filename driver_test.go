@@ -167,10 +167,10 @@ func (d *DRIVER) TestResult(c *C) {
 }
 
 func (d *DRIVER) TestConvertFloat64(c *C) {
-	var any float64 = 1.2
+	var any float64 = 1.22
 	s, err := monetize(any)
 	c.Assert(err, IsNil)
-	c.Assert(s, Equals, "1.2")
+	c.Assert(s, Equals, "1.22")
 }
 
 func (d *DRIVER) TestGoifyFloat64(c *C) {
@@ -178,6 +178,22 @@ func (d *DRIVER) TestGoifyFloat64(c *C) {
 	s, err := goify(any, FLOAT)
 	c.Assert(err, IsNil)
 	c.Assert(s.(float64), Equals, float64(12e-200))
+}
+
+func (d *DRIVER) TestGoifyFloat64a(c *C) {
+	any := "12.22"
+	s, err := goify(any, FLOAT)
+	c.Assert(err, IsNil)
+	c.Assert(s.(float64), Equals, float64(12.22))
+}
+
+func (d *DRIVER)TestInvariantFloat64(c *C){
+	var any float64 = 13.33
+	any1, err := monetize(any)
+	c.Assert(err, IsNil)
+	any2, err := goify(any1, FLOAT)
+	c.Assert(err, IsNil)
+	c.Assert(any2, Equals, any)
 }
 
 func (d *DRIVER) TestConvertString(c *C) {
@@ -377,4 +393,50 @@ func (d *DRIVER)TestStmtResult(c *C){
 	liid, err := r.LastInsertId()
 	c.Assert(err, IsNil)
 	c.Assert(liid, Equals, lastin)
+}
+
+func (d *DRIVER)TestRowsCloseDetachesConn(c *C){
+	r := new(mrows)
+	r.c = new(mconn)
+	c.Assert(r.Close(), IsNil)
+	c.Assert(r.c, IsNil)
+	c.Assert(r.closed, Equals, true)
+}
+
+func (d *DRIVER)TestRowsCloseIdem(c *C){
+	r := new(mrows)
+	c.Assert(r.Close(), IsNil)
+	c.Assert(r.Close(), IsNil)
+	c.Assert(r.closed, Equals, true)
+}
+
+func (d *DRIVER)TestRowsParse(c *C){
+	var v1 string = "hallo"
+	var v2 []byte = []byte(v1)
+	var v3 []byte = v2
+	var v4 time.Time = time.Date(2012,time.January, 10, 0, 0, 0, 0, time.UTC)
+	var v5 int64 = 1334
+	var v6 float64 = 13.33
+
+	v1s,_ := monetize(v1)
+	l := MSG_TUPLE + v1s
+	vv := []driver.Value{v2, v3, v4, v5, v6}
+	for _, v := range vv {
+		s, _ := monetize(v)
+		l += "\t" + s
+	}
+
+	r := newRows(new(mconn))
+	r.(*mrows).cols = make([]string, len(vv) + 1)
+	r.(*mrows).types = []string{CHAR, CLOB, BLOB, TIMESTAMP, INT, FLOAT}
+	err := r.(*mrows).parse(l)
+
+	c.Assert(err, IsNil)
+	c.Assert(len(r.(*mrows).rows), Equals, 1)
+	c.Assert(r.(*mrows).rows[0][0], Equals, v1)
+	c.Assert(r.(*mrows).rows[0][1], Equals, string(v2))
+	c.Assert(r.(*mrows).rows[0][2], DeepEquals, v3)
+	c.Assert(r.(*mrows).rows[0][3], Equals, v4)
+	c.Assert(r.(*mrows).rows[0][4], Equals, v5)
+	c.Assert(r.(*mrows).rows[0][5], Equals, v6)
 }
