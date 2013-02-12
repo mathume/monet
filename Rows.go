@@ -2,12 +2,13 @@ package monet
 
 import (
 	"database/sql/driver"
-	"strings"
 	"errors"
+	"strings"
 )
 
 type mrows struct {
 	c      *mconn
+	s *mstmt
 	cols   []string
 	types  []string
 	rows   [][]driver.Value
@@ -21,6 +22,7 @@ func (r *mrows) Close() error {
 	if r.closed {
 		return nil
 	}
+	r.s = nil
 	r.c = nil
 	r.closed = true
 	return nil
@@ -45,17 +47,18 @@ func (r *mrows) store(ll []string) error {
 	return nImpl
 }
 
-func newRows(c *mconn) driver.Rows {
+func newRows(c *mconn, s *mstmt)driver.Rows {
 	r := new(mrows)
 	r.c = c
+	r.s = s
 	r.rows = make([][]driver.Value, 0)
 	return r
 }
 
-func (r *mrows)Columns() []string{
+func (r *mrows) Columns() []string {
 	return r.cols
 }
 
-func (r *mrows)Next(dest []driver.Value) error {
+func (r *mrows) Next(dest []driver.Value) error {
 	return nImpl
 }

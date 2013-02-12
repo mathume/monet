@@ -84,7 +84,7 @@ func (s *mstmt) getResult(res string) (r driver.Result, err error) {
 func (s *mstmt) skipInfo(res string) (lines []string) {
 	ll := strings.Split(res, "\n")
 	for strings.HasPrefix(ll[0], MSG_INFO) {
-		ll = ll[1 : len(ll)-1]
+		ll = ll[1:]
 	}
 	return ll
 }
@@ -139,7 +139,7 @@ func (s *mstmt)getRows(res string)(driver.Rows, error){
 	if err != nil {
 		return nil, err
 	}
-	r := newRows(s.c)
+	r := newRows(s.c, s)
 	err = r.(*mrows).store(ll)
 	return r, err
 }

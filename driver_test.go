@@ -426,7 +426,7 @@ func (d *DRIVER)TestRowsParse(c *C){
 		l += "\t" + s
 	}
 
-	r := newRows(new(mconn))
+	r := newRows(new(mconn), new(mstmt))
 	r.(*mrows).cols = make([]string, len(vv) + 1)
 	r.(*mrows).types = []string{CHAR, CLOB, BLOB, TIMESTAMP, INT, FLOAT}
 	err := r.(*mrows).parse(l)
