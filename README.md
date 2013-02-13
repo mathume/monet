@@ -1,7 +1,7 @@
-imitating python monetdb api
+implementing monetdb compliant to database/sql/driver
 <br/>
 TODO:
 <br/>
--implement database/sql/driver for monet: the driver based on the monet-mapi doesn't need to respect closing statements or rows. they just need to be marked. the mapi will always send and receive via connection.
-<br/>
--TX: monetdb's transaction management scheme is based on optimistic concurrency control
+a.) missing test cases for rows.store, rows.next
+b.) extend live test suite
+c.) clear type compatibility
