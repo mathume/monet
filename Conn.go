@@ -34,15 +34,20 @@ func (m *mconn) Prepare(fmtquery string) (driver.Stmt, error) {
 	return newStmt(m, fmtquery), nil
 }
 
-func (m *mconn) cmd(operation string) (response string, err error){
-	if m.srv == nil {
-		response, err =  "", driver.ErrBadConn
-		return
-	}
-	return m.srv.Cmd("s" + operation + ";")
+func (m *mconn) cmd(operation string) (response string, err error) {
+	return m.mapi("s" + operation + ";")
 }
 
-func (m *mconn) clear(){
+//low level mapi commands sent to mapi server
+func (m *mconn) mapi(operation string) (response string, err error) {
+	if m.srv == nil {
+		response, err = "", driver.ErrBadConn
+		return
+	}
+	return m.srv.Cmd(operation)
+}
+
+func (m *mconn) clear() {
 	m.tx = nil
 	return
 }

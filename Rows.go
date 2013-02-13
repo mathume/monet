@@ -3,6 +3,7 @@ package monet
 import (
 	"database/sql/driver"
 	"errors"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -17,6 +18,7 @@ type mrows struct {
 	qid    string
 	off    int64
 	cou    int64
+	row    int
 }
 
 func (r *mrows) Close() error {
@@ -107,5 +109,46 @@ func (r *mrows) Columns() []string {
 }
 
 func (r *mrows) Next(dest []driver.Value) error {
-	return nImpl
+	if len(dest) != len(r.cols) {
+		return errors.New("Next: len(dest) not correct")
+	}
+	switch {
+	case r.row < len(r.rows):
+		curr := r.rows[r.row]
+		if no := copy(dest, curr); no != len(dest) {
+			return errors.New("Next: could not copy into dest.")
+		}
+		r.row++
+		return nil
+	case int64(r.row)+r.off >= r.cou:
+		return io.EOF
+	default:
+		r.off += int64(len(r.rows))
+		lim := min(r.cou, int64(r.row)+RowsSize)
+		sum := lim - r.off
+		c := "Xexport " + r.qid + " " + strconv.FormatInt(r.off, 10) + " " + strconv.FormatInt(sum, 10)
+		res, err := r.c.mapi(c)
+		if err != nil {
+			return err
+		}
+		ll, err := r.s.skipCheckError(res)
+		if err != nil {
+			return err
+		}
+		r.rows = make([][]driver.Value, 0)
+		r.row = 0
+		err = r.store(ll)
+		if err != nil {
+			return err
+		}
+		copy(dest, r.rows[r.row])
+	}
+	return errors.New("Next: CODEERROR: should never be returned.")
+}
+
+func min(a, b int64) int64 {
+	if a < b {
+		return b
+	}
+	return a
 }

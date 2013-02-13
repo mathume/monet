@@ -1,13 +1,15 @@
 package monet
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"io"
 	. "launchpad.net/gocheck"
 	"log"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 )
 
 var TestErr error = errors.New("TestErr")
@@ -187,7 +189,7 @@ func (d *DRIVER) TestGoifyFloat64a(c *C) {
 	c.Assert(s.(float64), Equals, float64(12.22))
 }
 
-func (d *DRIVER)TestInvariantFloat64(c *C){
+func (d *DRIVER) TestInvariantFloat64(c *C) {
 	var any float64 = 13.33
 	any1, err := monetize(any)
 	c.Assert(err, IsNil)
@@ -330,7 +332,7 @@ func (d *DRIVER) TestStmtBind(c *C) {
 	c.Assert(qry, Equals, "query with monetized time='2013-02-11 00:00:00'")
 }
 
-func (d *DRIVER)TestStmtExecCallsConnCmd(c *C){
+func (d *DRIVER) TestStmtExecCallsConnCmd(c *C) {
 	co, sr := getConnFakeServer()
 	s := newStmt(co, "time=%s")
 	exact := time.Date(2013, time.February, 11, 0, 0, 0, 0, time.UTC)
@@ -338,16 +340,16 @@ func (d *DRIVER)TestStmtExecCallsConnCmd(c *C){
 	c.Assert(sr.(*fsrv).received[0], Equals, "stime='2013-02-11 00:00:00';")
 }
 
-func (d *DRIVER)TestStmtSkipInfo(c *C){
+func (d *DRIVER) TestStmtSkipInfo(c *C) {
 	r := MSG_INFO + "any\n" + NO_MSG_INFO + "other\n"
 	s := new(mstmt)
 	ll := s.skipInfo(r)
 	c.Assert(ll, Not(IsNil))
 	c.Assert(len(ll) > 0, Equals, true)
-	c.Assert(ll[0], Equals, NO_MSG_INFO + "other")
+	c.Assert(ll[0], Equals, NO_MSG_INFO+"other")
 }
 
-func (d *DRIVER)TestStmtResultReturnsError(c *C){
+func (d *DRIVER) TestStmtResultReturnsError(c *C) {
 	errMsg := "error message"
 	r := MSG_ERROR + errMsg
 	_, err := new(mstmt).getResult(r)
@@ -355,7 +357,7 @@ func (d *DRIVER)TestStmtResultReturnsError(c *C){
 	c.Assert(err.Error(), Equals, "error message")
 }
 
-func (d *DRIVER)TestStmtResultReturnsResultNoRows(c *C){
+func (d *DRIVER) TestStmtResultReturnsResultNoRows(c *C) {
 	m := []string{MSG_QTRANS, MSG_QSCHEMA}
 	for _, v := range m {
 		msg := v + "MSG"
@@ -365,21 +367,21 @@ func (d *DRIVER)TestStmtResultReturnsResultNoRows(c *C){
 	}
 }
 
-func (d *DRIVER)TestStrip(c *C){
+func (d *DRIVER) TestStrip(c *C) {
 	s := "a b\tc\rd\ne \t\r\nf"
 	ss := new(mstmt).stripws(s)
 	c.Assert(len(ss), Equals, 6)
 	s = ""
-	for _,v := range ss {
+	for _, v := range ss {
 		s += string(v)
 		c.Log(string(v))
 	}
 	c.Log(s)
 	c.Assert(len(ss), Equals, 6)
-	c.Assert(s, Equals, "abcdef");
+	c.Assert(s, Equals, "abcdef")
 }
 
-func (d *DRIVER)TestStmtResult(c *C){
+func (d *DRIVER) TestStmtResult(c *C) {
 	var rowsaff int64 = 123456
 	var lastin int64 = 34
 	msg := MSG_QUPDATE + strconv.FormatInt(rowsaff, 10) + "\t" + strconv.FormatInt(lastin, 10)
@@ -395,7 +397,7 @@ func (d *DRIVER)TestStmtResult(c *C){
 	c.Assert(liid, Equals, lastin)
 }
 
-func (d *DRIVER)TestRowsCloseDetachesConn(c *C){
+func (d *DRIVER) TestRowsCloseDetachesConn(c *C) {
 	r := new(mrows)
 	r.c = new(mconn)
 	c.Assert(r.Close(), IsNil)
@@ -403,22 +405,22 @@ func (d *DRIVER)TestRowsCloseDetachesConn(c *C){
 	c.Assert(r.closed, Equals, true)
 }
 
-func (d *DRIVER)TestRowsCloseIdem(c *C){
+func (d *DRIVER) TestRowsCloseIdem(c *C) {
 	r := new(mrows)
 	c.Assert(r.Close(), IsNil)
 	c.Assert(r.Close(), IsNil)
 	c.Assert(r.closed, Equals, true)
 }
 
-func (d *DRIVER)TestRowsParse(c *C){
+func (d *DRIVER) TestRowsParse(c *C) {
 	var v1 string = "hallo"
 	var v2 []byte = []byte(v1)
 	var v3 []byte = v2
-	var v4 time.Time = time.Date(2012,time.January, 10, 0, 0, 0, 0, time.UTC)
+	var v4 time.Time = time.Date(2012, time.January, 10, 0, 0, 0, 0, time.UTC)
 	var v5 int64 = 1334
 	var v6 float64 = 13.33
 
-	v1s,_ := monetize(v1)
+	v1s, _ := monetize(v1)
 	l := MSG_TUPLE + v1s
 	vv := []driver.Value{v2, v3, v4, v5, v6}
 	for _, v := range vv {
@@ -427,7 +429,7 @@ func (d *DRIVER)TestRowsParse(c *C){
 	}
 
 	r := newRows(new(mconn), new(mstmt))
-	r.(*mrows).cols = make([]string, len(vv) + 1)
+	r.(*mrows).cols = make([]string, len(vv)+1)
 	r.(*mrows).types = []string{CHAR, CLOB, BLOB, TIMESTAMP, INT, FLOAT}
 	err := r.(*mrows).parse(l)
 
@@ -439,4 +441,49 @@ func (d *DRIVER)TestRowsParse(c *C){
 	c.Assert(r.(*mrows).rows[0][3], Equals, v4)
 	c.Assert(r.(*mrows).rows[0][4], Equals, v5)
 	c.Assert(r.(*mrows).rows[0][5], Equals, v6)
+}
+
+func (d *DRIVER) TestStore(c *C) {
+	c.Fatal("TODO: write tests for rows.store")
+}
+
+func (d *DRIVER) TestNextChecksInputLength(c *C) {
+	dest := make([]driver.Value, 0)
+	r := newRows(new(mconn), new(mstmt))
+	r.(*mrows).cols = make([]string, 1)
+	err := r.Next(dest)
+	c.Assert(err, Not(IsNil))
+}
+
+func (d *DRIVER) TestNextCopiesIfExistsData(c *C) {
+	r := newRows(new(mconn), new(mstmt))
+	row := []driver.Value{1, 2}
+	r.(*mrows).rows = append(r.(*mrows).rows, row)
+	r.(*mrows).cols = []string{"col1", "col2"}
+	dest := make([]driver.Value, 2)
+	err := r.Next(dest)
+	c.Assert(err, IsNil)
+	c.Assert(dest, DeepEquals, row)
+}
+
+func (d *DRIVER) TestNextReturnsEOF(c *C) {
+	r := newRows(new(mconn), new(mstmt))
+	totalrows := 1
+	rowsize := 2
+	r.(*mrows).rows = make([][]driver.Value, totalrows)
+	r.(*mrows).cols = make([]string, rowsize)
+	r.(*mrows).row = totalrows
+	r.(*mrows).off = 0
+	r.(*mrows).cou = int64(totalrows)
+	err := r.Next(make([]driver.Value, rowsize))
+	c.Assert(err, Equals, io.EOF)
+}
+
+func (d *DRIVER)TestNextSet(c *C){
+	c.Fatal("TODO")
+}
+
+func (d *DRIVER)TestSQLDoesntCallOpenOnOpen(c *C){
+	_, err := sql.Open(DRV_NAME, "anything")
+	c.Assert(err, IsNil)
 }
