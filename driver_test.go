@@ -254,10 +254,10 @@ func (d *DRIVER) TestConvertByteSlice(c *C) {
 }
 
 func (d *DRIVER) TestGoifyByteSliceBLOB(c *C) {
-	b := "'a\\\\b\\'c\\''"
+	b := "10110"
 	s, err := goify(b, BLOB)
 	c.Assert(err, IsNil)
-	c.Assert(s.([]byte), DeepEquals, []byte("a\\b'c'"))
+	c.Assert(s, Equals, "10110")
 }
 
 func (d *DRIVER) TestGoifyByteSliceCLOB(c *C) {
@@ -275,7 +275,7 @@ func (d *DRIVER) TestConvertTime(c *C) {
 }
 
 func (d *DRIVER) TestGoifyTime(c *C) {
-	t := "'" + TimeLayout + "'"
+	t := TimeLayout
 	s, err := goify(t, TIMESTAMP)
 	c.Assert(err, IsNil)
 	c.Assert(s.(time.Time).Format(TimeLayout), Equals, TimeLayout)
@@ -420,34 +420,46 @@ func (d *DRIVER) TestRowsParse(c *C) {
 	r := newRows(new(mconn), new(mstmt))
 	r.(*mrows).cols = make([]string, 6)
 	r.(*mrows).types = []string{BIGINT, FLOAT, TIMESTAMP, VARCHAR, CLOB, BLOB}
+	c.Log(r.(*mrows).types)
 	err := r.(*mrows).parse(msg_tuple)
 
 	c.Assert(err, IsNil)
 	c.Assert(len(r.(*mrows).rows), Equals, 1)
 	c.Log(r.(*mrows).rows)
-	//c.Assert(r.(*mrows).rows[0][0], Equals, int64(12342524353465))
-	c.Assert(r.(*mrows).rows[0][1], Equals, float64(1.24354e-95))
-	c.Assert(r.(*mrows).rows[0][2], Equals, time.Date(2013, time.February, 13, 13, 53, 9, 0, time.UTC))
-	c.Assert(r.(*mrows).rows[0][3], Equals, "kaixo mundua")
-	c.Assert(r.(*mrows).rows[0][4], Equals, "kaixo mundua")
-	c.Assert(r.(*mrows).rows[0][5], Equals, "100110")
+	c.Check(r.(*mrows).rows[0][0], Equals, int64(12342524353465))
+	c.Check(r.(*mrows).rows[0][1], Equals, float64(1.24354e-95))
+	c.Check(r.(*mrows).rows[0][2], Equals, time.Date(2013, time.February, 13, 13, 53, 9, 0, time.UTC))
+	c.Check(r.(*mrows).rows[0][3], Equals, "kaixo mundua")
+	c.Check(r.(*mrows).rows[0][4], Equals, "kaixo mundua")
+	c.Check(r.(*mrows).rows[0][5], Equals, "100110")
 }
 
-func (d *DRIVER)TestParseData(c *C){
-	e, _ := goify("12342524353465", BIGINT)
-	c.Assert(e, Equals, int64(12342524353465))
-	f, _ := strconv.ParseInt("12342524353465", 10, 64)
-	c.Assert(f, Equals, int64(12342524353465))
+func (d *DRIVER) TestParseDate(c *C) {
+	date := "2013-02-13 13:53:09.000000"
+	t, _ := time.Parse(TimeLayout, date)
+	c.Assert(t.Format(TimeLayout), Equals, date)
 }
 
 func (d *DRIVER) TestStore(c *C) {
 	r := newRows(new(mconn), new(mstmt))
 	ll := strings.Split(serverResponse, "\n")
-	_ = r.(*mrows).store(ll)
-	//c.Check(err, IsNil)
+	err := r.(*mrows).store(ll)
+	c.Check(err, IsNil)
 	c.Assert(r.(*mrows).qid, Equals, "0")
 	c.Assert(r.(*mrows).cou, Equals, int64(1))
-	c.Assert(len(r.(*mrows).cols), Equals, 6)
+	cols := r.Columns()
+	c.Assert(len(cols), Equals, 6)
+	c.Assert(cols[0], Equals, "col1")
+	c.Assert(cols[5], Equals, "col6")
+	t := r.(*mrows).types
+	c.Assert(len(t), Equals, 6)
+	c.Assert(t[0], Equals, BIGINT)
+	c.Assert(t[5], Equals, BLOB)
+	dest := r.(*mrows).rows[0]
+	c.Assert(r.Next(dest), IsNil)
+	et, _ := time.Parse(TimeLayout, "2013-02-13 13:53:09.000000")
+	c.Assert(dest[2].(time.Time).Equal(et), Equals, true)
+
 }
 
 func (d *DRIVER) TestNextChecksInputLength(c *C) {

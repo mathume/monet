@@ -16,7 +16,7 @@ func unescape(data string) string {
 }
 
 func goify(data string, tcode string) (s driver.Value, err error) {
-	data = strings.Trim(data, " ")
+	data = strings.Trim(data, " \t")
 	if data == "NULL" {
 		return nil, nil
 	}
@@ -28,11 +28,11 @@ func goify(data string, tcode string) (s driver.Value, err error) {
 	case REAL, DOUBLE, FLOAT:
 		s, err = strconv.ParseFloat(data, 64)
 	case BLOB:
-		s = []byte(unescape(data))
+		s = data
 	case BOOLEAN:
 		s = data == "true"
 	case TIMESTAMP:
-		s, err = time.Parse(TimeLayout, unescape(data))
+		s, err = time.Parse(TimeLayout, data)
 	default:
 		err = errors.New("Type " + tcode + " not supported.")
 	}

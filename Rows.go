@@ -68,9 +68,9 @@ func (r *mrows) store(ll []string) (err error) {
 				di := strings.Split(l[1:], "#")
 				d, i := strings.Split(di[0], ","), di[1]
 				for i, v := range d {
-					d[i] = strings.Trim(v, " ")
+					d[i] = strings.Trim(v, " \t")
 				}
-				i = strings.Trim(i, " ")
+				i = strings.Trim(i, " \t")
 				switch i {
 				case "name":
 					r.cols = d

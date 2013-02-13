@@ -225,19 +225,6 @@ func (s *MAPISERVER) TestCmd(c *C) {
 
 }
 
-type LIVE struct{}
-
-var _ = Suite(&LIVE{})
-
-func (s *LIVE) TestLiveConnectDisconnect(c *C) {
-	srv := NewServer()
-	err := srv.Connect("localhost", ":50000", "monetdb", "monetdb", "voc", "sql", time.Second*10)
-	c.Assert(err, IsNil)
-	err = srv.Disconnect()
-	c.Assert(err, IsNil)
-	//c.Error(logger.Msg)
-}
-
 type writer struct {
 	Msg string
 }
