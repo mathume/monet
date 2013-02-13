@@ -32,7 +32,7 @@ func (r *mrows) Close() error {
 }
 
 func (r *mrows) parse(l string) (err error) {
-	f := strings.Split(l[1:], "\t")
+	var f []string = strings.Split(l[1:len(l)-1], ",\t")
 
 	if len(f) == len(r.cols) {
 		var ff = make([]driver.Value, len(f))
@@ -58,7 +58,7 @@ func (r *mrows) store(ll []string) (err error) {
 
 		r.qid = meta[0]
 		r.cou, _ = strconv.ParseInt(meta[1], 10, 64)
-		colsno, _ := strconv.ParseInt(meta[2], 10, 64)
+		colsno, _ := strconv.ParseInt(meta[2], 10, 0)
 		r.cols = make([]string, colsno)
 		r.types = make([]string, colsno)
 

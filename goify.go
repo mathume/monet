@@ -16,6 +16,7 @@ func unescape(data string) string {
 }
 
 func goify(data string, tcode string) (s driver.Value, err error) {
+	data = strings.Trim(data, " ")
 	if data == "NULL" {
 		return nil, nil
 	}

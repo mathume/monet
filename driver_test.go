@@ -20,6 +20,8 @@ const (
 	NO_MSG_INFO = "NO_MSG_INFO"
 )
 
+var serverResponse = "&1 0 1 6 1\n% sys.alltypes,	sys.alltypes,	sys.alltypes,	sys.alltypes,	sys.alltypes,	sys.alltypes # table_name \n% col1,	col2,	col3,	col4,	col5,	col6 # name\n% bigint,	double,	timestamp,	varchar,	clob,	blob # type\n% 14,	24,	26,	12,	12,	0 # length\n[ 12342524353465,	1.24354e-95,	2013-02-13 13:53:09.000000,	\"kaixo mundua\",	\"kaixo mundua\",	100110	]"
+
 var _ = Suite(&DRIVER{})
 
 func (d *DRIVER) SetUpSuite(c *C) {
@@ -329,7 +331,7 @@ func (d *DRIVER) TestStmtBind(c *C) {
 	exact := time.Date(2013, time.February, 11, 0, 0, 0, 0, time.UTC)
 	qry, err := s.(*mstmt).bind([]driver.Value{exact})
 	c.Assert(err, IsNil)
-	c.Assert(qry, Equals, "query with monetized time='2013-02-11 00:00:00'")
+	c.Assert(qry, Equals, "query with monetized time='2013-02-11 00:00:00.000000'")
 }
 
 func (d *DRIVER) TestStmtExecCallsConnCmd(c *C) {
@@ -337,7 +339,7 @@ func (d *DRIVER) TestStmtExecCallsConnCmd(c *C) {
 	s := newStmt(co, "time=%s")
 	exact := time.Date(2013, time.February, 11, 0, 0, 0, 0, time.UTC)
 	s.Exec([]driver.Value{exact})
-	c.Assert(sr.(*fsrv).received[0], Equals, "stime='2013-02-11 00:00:00';")
+	c.Assert(sr.(*fsrv).received[0], Equals, "stime='2013-02-11 00:00:00.000000';")
 }
 
 func (d *DRIVER) TestStmtSkipInfo(c *C) {
@@ -413,38 +415,39 @@ func (d *DRIVER) TestRowsCloseIdem(c *C) {
 }
 
 func (d *DRIVER) TestRowsParse(c *C) {
-	var v1 string = "hallo"
-	var v2 []byte = []byte(v1)
-	var v3 []byte = v2
-	var v4 time.Time = time.Date(2012, time.January, 10, 0, 0, 0, 0, time.UTC)
-	var v5 int64 = 1334
-	var v6 float64 = 13.33
-
-	v1s, _ := monetize(v1)
-	l := MSG_TUPLE + v1s
-	vv := []driver.Value{v2, v3, v4, v5, v6}
-	for _, v := range vv {
-		s, _ := monetize(v)
-		l += "\t" + s
-	}
+	msg_tuple := "[ 12342524353465,	1.24354e-95,	2013-02-13 13:53:09.000000,	\"kaixo mundua\",	\"kaixo mundua\",	100110	]"
 
 	r := newRows(new(mconn), new(mstmt))
-	r.(*mrows).cols = make([]string, len(vv)+1)
-	r.(*mrows).types = []string{CHAR, CLOB, BLOB, TIMESTAMP, INT, FLOAT}
-	err := r.(*mrows).parse(l)
+	r.(*mrows).cols = make([]string, 6)
+	r.(*mrows).types = []string{BIGINT, FLOAT, TIMESTAMP, VARCHAR, CLOB, BLOB}
+	err := r.(*mrows).parse(msg_tuple)
 
 	c.Assert(err, IsNil)
 	c.Assert(len(r.(*mrows).rows), Equals, 1)
-	c.Assert(r.(*mrows).rows[0][0], Equals, v1)
-	c.Assert(r.(*mrows).rows[0][1], Equals, string(v2))
-	c.Assert(r.(*mrows).rows[0][2], DeepEquals, v3)
-	c.Assert(r.(*mrows).rows[0][3], Equals, v4)
-	c.Assert(r.(*mrows).rows[0][4], Equals, v5)
-	c.Assert(r.(*mrows).rows[0][5], Equals, v6)
+	c.Log(r.(*mrows).rows)
+	//c.Assert(r.(*mrows).rows[0][0], Equals, int64(12342524353465))
+	c.Assert(r.(*mrows).rows[0][1], Equals, float64(1.24354e-95))
+	c.Assert(r.(*mrows).rows[0][2], Equals, time.Date(2013, time.February, 13, 13, 53, 9, 0, time.UTC))
+	c.Assert(r.(*mrows).rows[0][3], Equals, "kaixo mundua")
+	c.Assert(r.(*mrows).rows[0][4], Equals, "kaixo mundua")
+	c.Assert(r.(*mrows).rows[0][5], Equals, "100110")
+}
+
+func (d *DRIVER)TestParseData(c *C){
+	e, _ := goify("12342524353465", BIGINT)
+	c.Assert(e, Equals, int64(12342524353465))
+	f, _ := strconv.ParseInt("12342524353465", 10, 64)
+	c.Assert(f, Equals, int64(12342524353465))
 }
 
 func (d *DRIVER) TestStore(c *C) {
-	c.Fatal("TODO: write tests for rows.store")
+	r := newRows(new(mconn), new(mstmt))
+	ll := strings.Split(serverResponse, "\n")
+	_ = r.(*mrows).store(ll)
+	//c.Check(err, IsNil)
+	c.Assert(r.(*mrows).qid, Equals, "0")
+	c.Assert(r.(*mrows).cou, Equals, int64(1))
+	c.Assert(len(r.(*mrows).cols), Equals, 6)
 }
 
 func (d *DRIVER) TestNextChecksInputLength(c *C) {
@@ -479,11 +482,11 @@ func (d *DRIVER) TestNextReturnsEOF(c *C) {
 	c.Assert(err, Equals, io.EOF)
 }
 
-func (d *DRIVER)TestNextSet(c *C){
+func (d *DRIVER) TestNextSet(c *C) {
 	c.Fatal("TODO")
 }
 
-func (d *DRIVER)TestSQLDoesntCallOpenOnOpen(c *C){
+func (d *DRIVER) TestSQLDoesntCallOpenOnOpen(c *C) {
 	_, err := sql.Open(DRV_NAME, "anything")
 	c.Assert(err, IsNil)
 }
