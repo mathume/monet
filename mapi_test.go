@@ -5,6 +5,7 @@ import (
 	. "launchpad.net/gocheck"
 	"log"
 	"net"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +23,7 @@ const (
 )
 
 var (
-	logger *Writer
+	logger *writer
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -30,7 +31,7 @@ func Test(t *testing.T) { TestingT(t) }
 type MAPISERVER struct{}
 
 func (m *MAPISERVER) SetUpSuite(c *C) {
-	logger = new(Writer)
+	logger = new(writer)
 	Logger = log.New(logger, "monet_test ", log.LstdFlags)
 }
 
@@ -73,7 +74,7 @@ func (s *MAPISERVER) TestGetBytes(c *C) {
 	srv := server{*new(conn), STATE_INIT, nil, nil, Logger}
 	bytesToSend := []byte("01")
 
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	fconn.Write(bytesToSend)
 	srv.conn.netConn = fconn.(net.Conn)
 	bb, err := srv.getbytes(2)
@@ -91,7 +92,7 @@ func (s *MAPISERVER) TestGetBlockShort(c *C) {
 	send := append(flag, msg...)
 	Logger.Println("send", send)
 	con := new(conn)
-	con.netConn = NewFakeConn().(net.Conn)
+	con.netConn = newFakeConn().(net.Conn)
 	srv := server{*con, STATE_INIT, nil, nil, Logger}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
@@ -103,7 +104,7 @@ func (s *MAPISERVER) TestGetBlockShort(c *C) {
 
 func (s *MAPISERVER) TestFakeConn(c *C) {
 	//create
-	f := NewFakeConn()
+	f := newFakeConn()
 	c.Assert(f.Closed(), Equals, false)
 	c.Assert(f.ReturnsErrorOnClose(), Equals, false)
 	//send
@@ -150,7 +151,7 @@ func (s *MAPISERVER) TestGetBlockLong(c *C) {
 	send = append(send, msg2...)
 	Logger.Println("send", send)
 	con := new(conn)
-	con.netConn = NewFakeConn().(net.Conn)
+	con.netConn = newFakeConn().(net.Conn)
 	srv := server{*con, STATE_INIT, nil, nil, Logger}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
@@ -170,7 +171,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 	expected := append(flag, msg...)
 	conn := new(conn)
 	srv := server{*conn, STATE_INIT, nil, nil, Logger}
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	srv.conn.netConn = fconn.(net.Conn)
 	err := srv.putblock(msg)
 	c.Assert(err, IsNil)
@@ -181,7 +182,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 func (s *MAPISERVER) TestDisconnect(c *C) {
 	conn := new(conn)
 	srv := server{*conn, STATE_INIT, nil, nil, Logger}
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	fconn.ReturnErrorOnClose(true)
 	srv.conn.netConn = fconn.(net.Conn)
 	srv.conn.netConn.Close()
@@ -199,7 +200,7 @@ func (s *MAPISERVER) TestCmd(c *C) {
 	c.Assert(strings.Contains(err.Error(), "not ready"), Equals, true)
 	srv.state = STATE_READY
 	//no response no error
-	fconn := NewFakeConn()
+	fconn := newFakeConn()
 	srv.conn.netConn = fconn.(net.Conn)
 	willBePutToFakeConn := ""
 	response, err := srv.Cmd(willBePutToFakeConn)
@@ -209,7 +210,7 @@ func (s *MAPISERVER) TestCmd(c *C) {
 	well := []string{MSG_Q, MSG_HEADER, MSG_TUPLE}
 	for _,v := range well {
 		willBePutToFakeConn = string(v) + "anyTestResponse"
-		fconn = NewFakeConn()
+		fconn = newFakeConn()
 		response, err = srv.Cmd(willBePutToFakeConn)
 		c.Assert(err, IsNil)
 		c.Assert(response, Equals, willBePutToFakeConn)
@@ -217,7 +218,7 @@ func (s *MAPISERVER) TestCmd(c *C) {
 	//response error message
 	expErrMsg := "expected error message"
 	willBePutToFakeConn = string(MSG_ERROR) + expErrMsg
-	fconn = NewFakeConn()
+	fconn = newFakeConn()
 	response, err = srv.Cmd(willBePutToFakeConn)
 	c.Assert(err, Not(IsNil))
 	c.Assert(strings.Contains(err.Error(), expErrMsg), Equals, true)
@@ -235,4 +236,80 @@ func (s *LIVE) TestLiveConnectDisconnect(c *C) {
 	err = srv.Disconnect()
 	c.Assert(err, IsNil)
 	//c.Error(logger.Msg)
+}
+
+type writer struct {
+	Msg string
+}
+
+func (w *writer) Clear() {
+	w.Msg = ""
+	return
+}
+
+func (w *writer) Write(p []byte) (n int, err error) {
+	w.Msg += string(p)
+	n, err = len(p), nil
+	return
+}
+
+type FakeConn interface {
+	net.Conn
+	Received() []byte
+	Closed() bool
+	ReturnsErrorOnClose() bool
+	ReturnErrorOnClose(b bool)
+}
+
+func newFakeConn() FakeConn {
+	fc := new(fakeConn)
+	return fc
+}
+
+type fakeConn struct {
+	received           []byte
+	closed             bool
+	returnErrorOnClose bool
+}
+
+func (f *fakeConn) ReturnErrorOnClose(b bool) {
+	f.returnErrorOnClose = b
+	return
+}
+
+func (f *fakeConn) ReturnsErrorOnClose() bool {
+	return f.returnErrorOnClose
+}
+
+func (f *fakeConn) Closed() bool {
+	return f.closed
+}
+
+func (f *fakeConn) Received() []byte {
+	return f.received
+}
+
+func (f *fakeConn) Read(bytes []byte) (n int, err error) {
+	n = copy(bytes, f.received)
+	f.received = f.received[n:]
+	return
+}
+
+func (f *fakeConn) Write(bytes []byte) (n int, err error) {
+	f.received = append(f.received, bytes...)
+	n = len(bytes)
+	return
+}
+
+func (f *fakeConn) LocalAddr() (laddr net.Addr)              { return }
+func (f *fakeConn) RemoteAddr() (raddr net.Addr)             { return }
+func (f *fakeConn) SetDeadline(t time.Time) (err error)      { return }
+func (f *fakeConn) SetWriteDeadline(t time.Time) (err error) { return }
+func (f *fakeConn) SetReadDeadline(t time.Time) (err error)  { return }
+func (f *fakeConn) Close() (err error) {
+	f.closed = true
+	if f.returnErrorOnClose {
+		err = errors.New("error at close")
+	}
+	return
 }
