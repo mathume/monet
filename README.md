@@ -2,10 +2,8 @@ implementing monetdb compliant to database/sql/driver
 <br/>
 TODO:
 <br/>
-FIX BUG: store doesn't correctly parse response and panics
+a.) extend live test suite
 <br/>
-a.) missing test cases for rows.store, rows.next
+b.) clear type compatibility
 <br/>
-b.) extend live test suite
-<br/>
-c.) clear type compatibility
+c.) check if there are encoding issues, if driver used on mac os
