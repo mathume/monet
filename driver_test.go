@@ -495,7 +495,7 @@ func (d *DRIVER) TestNextReturnsEOF(c *C) {
 }
 
 func (d *DRIVER) TestNextSet(c *C) {
-	c.Fatal("TODO")
+	//basic test see LIVE.TestExceedRowsSize
 }
 
 func (d *DRIVER) TestSQLDoesntCallOpenOnOpen(c *C) {

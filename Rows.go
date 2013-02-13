@@ -143,6 +143,7 @@ func (r *mrows) Next(dest []driver.Value) error {
 			return err
 		}
 		copy(dest, r.rows[r.row])
+		return nil
 	}
 	return errors.New("Next: CODEERROR: should never be returned.")
 }
