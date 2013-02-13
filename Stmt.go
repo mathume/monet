@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -128,7 +129,7 @@ func (s *mstmt) NumInput() int {
 }
 
 func (s *mstmt) Query(args []driver.Value) (driver.Rows, error) {
-	if _, err := s.c.mapi("Xreply_size " + strconv.FormatInt(RowsSize, 10)); err != nil {
+	if _, err := s.c.mapi("Xreply_size " + strconv.FormatInt(RowsSize, 10)); err != io.EOF {
 		return nil, err
 	}
 	res, err := s.cmd(args)
@@ -154,7 +155,7 @@ func (s *mstmt) skipCheckError(res string) (ll []string, err error) {
 	return s.checkError(ll)
 }
 
-func (s *mstmt) checkError(la []string) (ll []string, err error){
+func (s *mstmt) checkError(la []string) (ll []string, err error) {
 	if len(la) == 0 {
 		return nil, errors.New("Result empty")
 	}
