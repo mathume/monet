@@ -128,7 +128,7 @@ func (s *mstmt) NumInput() int {
 }
 
 func (s *mstmt) Query(args []driver.Value) (driver.Rows, error) {
-	if _, err := s.c.cmd("Xreply_size " + strconv.FormatInt(RowsSize, 10)); err != nil {
+	if _, err := s.c.mapi("Xreply_size " + strconv.FormatInt(RowsSize, 10)); err != nil {
 		return nil, err
 	}
 	res, err := s.cmd(args)
