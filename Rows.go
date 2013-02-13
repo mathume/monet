@@ -55,9 +55,10 @@ func (r *mrows) store(ll []string) (err error) {
 	switch {
 	case strings.HasPrefix(ll[0], MSG_QTABLE):
 		meta := r.s.stripws(ll[0][2:])
+
 		r.qid = meta[0]
-		r.cou, _ = strconv.ParseInt(meta[1], 10, -1)
-		colsno, _ := strconv.ParseInt(meta[2], 10, -1)
+		r.cou, _ = strconv.ParseInt(meta[1], 10, 64)
+		colsno, _ := strconv.ParseInt(meta[2], 10, 64)
 		r.cols = make([]string, colsno)
 		r.types = make([]string, colsno)
 
