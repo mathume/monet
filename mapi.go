@@ -18,7 +18,7 @@ import (
 )
 
 var Logger *log.Logger = log.New(os.Stdout, "monetdb ", log.LstdFlags)
-var PyHashToGo = map[string]crypto.Hash{
+var c_PyHashToGo = map[string]crypto.Hash{
 	"MD5":    crypto.MD5,
 	"SHA1":   crypto.SHA1,
 	"SHA224": crypto.SHA224,
@@ -209,7 +209,7 @@ func (srv *server) challenge_response(challenge string) (response string) {
 
 	if protocol == "9" {
 		algo := challenges[5]
-		h := PyHashToGo[algo].New()
+		h := c_PyHashToGo[algo].New()
 		h.Write([]byte(password))
 		password = hex.EncodeToString(h.Sum(nil))
 	} else if protocol != "8" {

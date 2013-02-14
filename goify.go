@@ -39,7 +39,7 @@ func goify(data string, tcode string) (s driver.Value, err error) {
 	return
 }
 
-var (
+const (
 	//type codes in comments currently not supported by go driver
 	CHAR     = "char"    // (L) character string with length L
 	VARCHAR  = "varchar" // (L) string with atmost length L
