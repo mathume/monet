@@ -4,13 +4,7 @@ import (
 	"time"
 )
 
-type fakeServer interface {
-	Server
-	Received() []string
-	DisconnectHasBeenCalled() bool
-}
-
-func newFakeServer(err error) fakeServer {
+func newFakeServer(err error) Server {
 	f := new(fsrv)
 	f.err = err
 	return f
@@ -42,12 +36,4 @@ func (fs *fsrv) Connect(hostname, port, username, password, database, language s
 func (fs *fsrv) Disconnect() error {
 	fs.disconnected = true
 	return fs.err
-}
-
-func (fs *fsrv) Received() []string {
-	return fs.received
-}
-
-func (fs *fsrv) DisconnectHasBeenCalled() bool{
-	return fs.disconnected
 }

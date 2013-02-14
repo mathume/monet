@@ -33,18 +33,18 @@ func (d *DRIVER) SetUpTest(c *C) {
 	logger.Clear()
 }
 
-func getconnfs(err error) (*mconn, fakeServer) {
+func getconnfs(err error) (*mconn, Server) {
 	con := new(mconn)
 	fs := newFakeServer(err)
 	con.srv = fs.(Server)
 	return con, fs
 }
 
-func getConnFakeServer() (*mconn, fakeServer) {
+func getConnFakeServer() (*mconn, Server) {
 	return getconnfs(nil)
 }
 
-func getConnFakeServerWithError() (*mconn, fakeServer) {
+func getConnFakeServerWithError() (*mconn, Server) {
 	return getconnfs(TestErr)
 }
 
@@ -55,7 +55,7 @@ func (d *DRIVER) TestNewTx(c *C) {
 func (d *DRIVER) TestBeginSendsStartTransaction(c *C) {
 	con, fs := getConnFakeServer()
 	con.Begin()
-	c.Assert(contains(fs.Received(), "sSTART TRANSACTION;"), Equals, true)
+	c.Assert(contains(fs.(*fsrv).received, "sSTART TRANSACTION;"), Equals, true)
 }
 
 func (d *DRIVER) TestBeginCanOnlyBeCalledOnce(c *C) {
@@ -72,20 +72,20 @@ func (d *DRIVER) TestCloseWillRollbackWhenThereIsATx(c *C) {
 	con, fs := getConnFakeServer()
 	con.Begin()
 	con.Close()
-	c.Assert(contains(fs.Received(), "sROLLBACK;"), Equals, true)
+	c.Assert(contains(fs.(*fsrv).received, "sROLLBACK;"), Equals, true)
 }
 
 func (d *DRIVER) TestCloseWillNotRollbackWithoutTx(c *C) {
 	con, fs := getConnFakeServer()
 	con.Close()
-	c.Assert(contains(fs.Received(), "sROLLBACK;"), Equals, false)
+	c.Assert(contains(fs.(*fsrv).received, "sROLLBACK;"), Equals, false)
 }
 
 func (d *DRIVER) TestCloseDisconnects(c *C) {
 	con, fs := getConnFakeServer()
-	c.Assert(fs.DisconnectHasBeenCalled(), Equals, false)
+	c.Assert(fs.(*fsrv).disconnected, Equals, false)
 	con.Close()
-	c.Assert(fs.DisconnectHasBeenCalled(), Equals, true)
+	c.Assert(fs.(*fsrv).disconnected, Equals, true)
 }
 
 func (d *DRIVER) TestClosePipesError(c *C) {
@@ -97,7 +97,7 @@ func (d *DRIVER) TestCommitIsReceived(c *C) {
 	con, fs := getConnFakeServer()
 	tx, _ := con.Begin()
 	tx.Commit()
-	c.Assert(contains(fs.Received(), "sCOMMIT;"), Equals, true)
+	c.Assert(contains(fs.(*fsrv).received, "sCOMMIT;"), Equals, true)
 }
 
 func (d *DRIVER) TestCanBeginAfterCommit(c *C) {
