@@ -47,7 +47,7 @@ const (
 	c_STATE_INIT  = 0
 	c_STATE_READY = 1
 
-	NET = "tcp"
+	c_NET = "tcp"
 )
 
 type Server interface {
@@ -129,7 +129,7 @@ func (srv *server) connect(protocol, host string, timeout time.Duration) (err er
 
 func (srv *server) Connect(hostname, port, username, password, database, language string, timeout time.Duration) (err error) {
 	srv.setConn(hostname, port, username, password, database, language)
-	err = srv.connect(NET, hostname+port, timeout)
+	err = srv.connect(c_NET, hostname+port, timeout)
 	if err != nil {
 		return
 	}

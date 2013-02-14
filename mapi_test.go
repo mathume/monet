@@ -43,7 +43,7 @@ var _ = Suite(&MAPISERVER{})
 
 func (s *MAPISERVER) TestCorrectConnection(c *C) {
 	srv := server{*new(conn), c_STATE_INIT, nil, nil, Logger}
-	err := srv.connect(NET, alwaysUpTcp, time.Second)
+	err := srv.connect(c_NET, alwaysUpTcp, time.Second)
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(logger.Msg, "Connection succeeded"), Equals, true)
 }
