@@ -1,6 +1,6 @@
 implementing monetdb compliant to database/sql/driver
 <br/>
-monet.Logger will log Server activity using pkg/log
+monet.LogWriter will log Server activity.
 <br/>
 TODO:
 <br/>
