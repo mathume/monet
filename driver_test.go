@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	. "launchpad.net/gocheck"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -25,12 +24,11 @@ var serverResponse = "&1 0 1 6 1\n% sys.alltypes,	sys.alltypes,	sys.alltypes,	sy
 var _ = Suite(&DRIVER{})
 
 func (d *DRIVER) SetUpSuite(c *C) {
-	logger = new(writer)
-	Logger = log.New(logger, "driver_test ", log.LstdFlags)
+	logWriter = new(writer)
 }
 
 func (d *DRIVER) SetUpTest(c *C) {
-	logger.Clear()
+	logWriter.Clear()
 }
 
 func getconnfs(err error) (*mconn, Server) {

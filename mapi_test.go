@@ -3,7 +3,6 @@ package monet
 import (
 	"encoding/binary"
 	. "launchpad.net/gocheck"
-	"log"
 	"net"
 	"errors"
 	"strings"
@@ -23,7 +22,7 @@ const (
 )
 
 var (
-	logger *writer
+	logWriter *writer
 )
 
 func Test(t *testing.T) { TestingT(t) }
@@ -31,31 +30,30 @@ func Test(t *testing.T) { TestingT(t) }
 type MAPISERVER struct{}
 
 func (m *MAPISERVER) SetUpSuite(c *C) {
-	logger = new(writer)
-	Logger = log.New(logger, "monet_test ", log.LstdFlags)
+	logWriter = new(writer)
 }
 
 func (m *MAPISERVER) SetUpTest(c *C) {
-	logger.Clear()
+	logWriter.Clear()
 }
 
 var _ = Suite(&MAPISERVER{})
 
 func (s *MAPISERVER) TestCorrectConnection(c *C) {
-	srv := server{*new(conn), c_STATE_INIT, nil, nil, Logger}
+	srv := server{*new(conn), c_STATE_INIT, nil, nil, logWriter}
 	err := srv.connect(c_NET, alwaysUpTcp, time.Second)
 	c.Assert(err, IsNil)
-	c.Assert(strings.Contains(logger.Msg, "Connection succeeded"), Equals, true)
+	c.Assert(strings.Contains(logWriter.Msg, "Connection succeeded"), Equals, true)
 }
 
-func (s *MAPISERVER) TestNewServer(c *C) {
-	srv := NewServer()
+func (s *MAPISERVER) TestCreateServer(c *C) {
+	srv := CreateServer(logWriter)
 	c.Assert(srv, NotNil)
-	c.Assert(strings.Contains(logger.Msg, "Server initialized"), Equals, true)
+	c.Assert(strings.Contains(logWriter.Msg, "Server initialized"), Equals, true)
 }
 
 func (s *MAPISERVER) TestChallenge_Response(c *C) {
-	srv := server{*new(conn), c_STATE_INIT, nil, nil, Logger}
+	srv := server{*new(conn), c_STATE_INIT, nil, nil, logWriter}
 	response := srv.challenge_response(validChallenge)
 	c.Assert(response, Equals, validResponse)
 }
@@ -71,7 +69,7 @@ func (s *MAPISERVER) TestContains(c *C) {
 }
 
 func (s *MAPISERVER) TestGetBytes(c *C) {
-	srv := server{*new(conn), c_STATE_INIT, nil, nil, Logger}
+	srv := server{*new(conn), c_STATE_INIT, nil, nil, logWriter}
 	bytesToSend := []byte("01")
 
 	fconn := newFakeConn()
@@ -90,14 +88,13 @@ func (s *MAPISERVER) TestGetBlockShort(c *C) {
 	i_flag := uint16((length << 1) + last)
 	binary.LittleEndian.PutUint16(flag, i_flag)
 	send := append(flag, msg...)
-	Logger.Println("send", send)
 	con := new(conn)
 	con.netConn = newFakeConn().(net.Conn)
-	srv := server{*con, c_STATE_INIT, nil, nil, Logger}
+	srv := server{*con, c_STATE_INIT, nil, nil, logWriter}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
 	r, err := srv.getblock()
-	c.Log(logger.Msg)
+	c.Log(logWriter.Msg)
 	c.Assert(err, IsNil)
 	c.Assert(r, Equals, string(msg))
 }
@@ -112,7 +109,7 @@ func (s *MAPISERVER) TestFakeConn(c *C) {
 	n, err := f.Write(msg)
 	c.Assert(err, IsNil)
 	c.Assert(n, Equals, len(msg))
-	c.Log(logger.Msg)
+	c.Log(logWriter.Msg)
 	act, exp := string(f.Received()), string(msg)
 	c.Assert(act, Equals, exp)
 	//receive
@@ -149,15 +146,14 @@ func (s *MAPISERVER) TestGetBlockLong(c *C) {
 	send := append(flag1, msg1...)
 	send = append(send, flag2...)
 	send = append(send, msg2...)
-	Logger.Println("send", send)
 	con := new(conn)
 	con.netConn = newFakeConn().(net.Conn)
-	srv := server{*con, c_STATE_INIT, nil, nil, Logger}
+	srv := server{*con, c_STATE_INIT, nil, nil, logWriter}
 	n, err := srv.conn.netConn.Write(send)
 	c.Assert(n, Equals, len(send))
 
 	r, err := srv.getblock()
-	c.Log(logger.Msg)
+	c.Log(logWriter.Msg)
 	c.Assert(err, IsNil)
 	c.Assert(r, Equals, string(msg1)+string(msg2))
 }
@@ -170,7 +166,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 	binary.LittleEndian.PutUint16(flag, i_flag)
 	expected := append(flag, msg...)
 	conn := new(conn)
-	srv := server{*conn, c_STATE_INIT, nil, nil, Logger}
+	srv := server{*conn, c_STATE_INIT, nil, nil, logWriter}
 	fconn := newFakeConn()
 	srv.conn.netConn = fconn.(net.Conn)
 	err := srv.putblock(msg)
@@ -181,7 +177,7 @@ func (s *MAPISERVER) TestPutBlockShort(c *C) {
 
 func (s *MAPISERVER) TestDisconnect(c *C) {
 	conn := new(conn)
-	srv := server{*conn, c_STATE_INIT, nil, nil, Logger}
+	srv := server{*conn, c_STATE_INIT, nil, nil, logWriter}
 	fconn := newFakeConn()
 	fconn.ReturnErrorOnClose(true)
 	srv.conn.netConn = fconn.(net.Conn)
@@ -195,7 +191,7 @@ func (s *MAPISERVER) TestDisconnect(c *C) {
 func (s *MAPISERVER) TestCmd(c *C) {
 	conn := new(conn)
 	//check state
-	srv := server{*conn, c_STATE_INIT, nil, nil, Logger}
+	srv := server{*conn, c_STATE_INIT, nil, nil, logWriter}
 	_, err := srv.Cmd("anyCommand")
 	c.Assert(strings.Contains(err.Error(), "not ready"), Equals, true)
 	srv.state = c_STATE_READY
@@ -237,6 +233,26 @@ func (w *writer) Clear() {
 func (w *writer) Write(p []byte) (n int, err error) {
 	w.Msg += string(p)
 	n, err = len(p), nil
+	return
+}
+
+func (w *writer) Debug(m string)(err error){
+	_, err = w.Write([]byte(m))
+	return
+}
+
+func (w *writer) Info(m string)(err error){
+	_, err = w.Write([]byte(m))
+	return
+}
+
+func (w *writer) Warning(m string)(err error){
+	_, err = w.Write([]byte(m))
+	return
+}
+
+func (w *writer) Err(m string)(err error){
+	_, err = w.Write([]byte(m))
 	return
 }
 

@@ -9,15 +9,15 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"log"
 	"monet/crypt"
 	"net"
-	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
-var Logger *log.Logger = log.New(os.Stdout, "monetdb ", log.LstdFlags)
+var MapiLogger LogWriter = new(nolog)
+
 var c_PyHashToGo = map[string]crypto.Hash{
 	"MD5":    crypto.MD5,
 	"SHA1":   crypto.SHA1,
@@ -50,6 +50,7 @@ const (
 	c_NET = "tcp"
 )
 
+// A low level connection to the monetdb mapi server.
 type Server interface {
 	Cmd(operation string) (string, error)
 	Connect(hostname, port, username, password, database, language string, timeout time.Duration) error
@@ -61,7 +62,7 @@ type server struct {
 	state  int
 	result interface{}
 	socket interface{}
-	logger *log.Logger
+	logger LogWriter
 }
 
 type conn struct {
@@ -75,18 +76,18 @@ type conn struct {
 }
 
 func NewServer() Server {
-	return CreateServer(Logger)
+	return CreateServer(MapiLogger)
 }
 
-func CreateServer(logger *log.Logger) Server {
+func CreateServer(logger LogWriter) Server {
 	var c conn
-	s := server{c, c_STATE_INIT, nil, nil, Logger}
-	s.logger.Println("Server initialized.")
+	s := server{c, c_STATE_INIT, nil, nil, logger}
+	s.logger.Info("Server initialized.")
 	return &s
 }
 
 func (srv *server) Cmd(operation string) (response string, err error) {
-	srv.logger.Println("II: executing command", operation)
+	srv.logger.Debug("II: executing command" + operation)
 
 	if srv.state != c_STATE_READY {
 		err = errors.New("Programming error: not ready for command")
@@ -123,7 +124,7 @@ func (srv *server) connect(protocol, host string, timeout time.Duration) (err er
 	if err != nil {
 		return
 	}
-	srv.logger.Println("Connection succeeded.")
+	srv.logger.Info("Connection succeeded.")
 	return
 }
 
@@ -152,14 +153,14 @@ func (srv *server) login(iteration int, timeout time.Duration) (err error) {
 
 	if len(prompt) == 0 {
 	} else if strings.HasPrefix(prompt, c_MSG_INFO) {
-		srv.logger.Println("II", prompt[1:])
+		srv.logger.Debug("II " + prompt[1:])
 	} else if strings.HasPrefix(prompt, c_MSG_ERROR) {
-		srv.logger.Println(prompt[1:])
+		srv.logger.Err(prompt[1:])
 		err = errors.New("DatabaseError " + prompt[1:])
 	} else if strings.HasPrefix(prompt, c_MSG_REDIRECT) {
 		redirect := strings.Split(strings.Split(prompt, " \t\r\n")[0][1:], ":")
 		if redirect[1] == "merovingian" {
-			srv.logger.Println("II: merovingian proxy, restarting authentication")
+			srv.logger.Info("II: merovingian proxy, restarting authentication")
 			if iteration <= 10 {
 				srv.login(iteration+1, timeout)
 			} else {
@@ -169,16 +170,16 @@ func (srv *server) login(iteration int, timeout time.Duration) (err error) {
 			srv.hostname = redirect[2][2:]
 			pd := strings.Split(redirect[3], "/")
 			srv.password, srv.database = pd[0], pd[1]
-			srv.logger.Println("II: merovingian redirect to monetdb:", srv.hostname, srv.port, srv.database)
+			srv.logger.Warning("II: merovingian redirect to monetdb:" + srv.hostname + ";" + srv.port + ";" + srv.database)
 			srv.conn.netConn.Close()
 			srv.Connect(srv.hostname, srv.port, srv.username, srv.password, srv.database, srv.language, timeout)
 		} else {
-			srv.logger.Println("!", prompt[0])
-			err = errors.New("ProgrammingError, unknown redirect" + prompt)
+			srv.logger.Err(prompt)
+			err = errors.New("ProgrammingError, unknown redirect: " + prompt[1:])
 		}
 	} else {
-		srv.logger.Println("!", prompt[0])
-		err = errors.New("ProgrammingError, unknown state:" + prompt)
+		srv.logger.Err(prompt)
+		err = errors.New("ProgrammingError, unknown state: " + prompt[1:])
 	}
 
 	srv.state = c_STATE_READY
@@ -213,7 +214,7 @@ func (srv *server) challenge_response(challenge string) (response string) {
 		h.Write([]byte(password))
 		password = hex.EncodeToString(h.Sum(nil))
 	} else if protocol != "8" {
-		srv.logger.Fatalln("We only speak protocol v8 and v9")
+		srv.logger.Err("We only speak protocol v8 and v9")
 	}
 
 	var pwhash string
@@ -231,8 +232,8 @@ func (srv *server) challenge_response(challenge string) (response string) {
 	} else if contains(hh, "crypt") {
 		pwhash, err := crypt.Crypt((password + salt)[:8], salt[len(salt)-2:])
 		if err != nil {
-			srv.logger.Println("Error calculating response in crypt:")
-			srv.logger.Fatalln(err)
+			srv.logger.Err("Error calculating response in crypt:")
+			srv.logger.Err(err.Error())
 		}
 		pwhash = "{crypt}" + pwhash
 	} else {
@@ -254,7 +255,7 @@ func (srv *server) getblock() (result string, err error) {
 		unpacked := int(binary.LittleEndian.Uint16(flag))
 		length := unpacked >> 1
 		last = unpacked & 1
-		srv.logger.Println("II: reading", length, "bytes, last:", last)
+		srv.logger.Info("II: reading " + strconv.Itoa(length) + " bytes, last: " + strconv.Itoa(last))
 
 		read, er := srv.getbytes(length)
 		if er != nil {
@@ -264,7 +265,7 @@ func (srv *server) getblock() (result string, err error) {
 		r = append(r, read...)
 	}
 	result = string(r)
-	srv.logger.Println("RX:", result)
+	srv.logger.Debug("RX: " + result)
 	return
 }
 
@@ -272,7 +273,8 @@ func (srv *server) getbytes(many int) (bytes []byte, err error) {
 	bytes = make([]byte, many)
 	n, err := srv.conn.netConn.Read(bytes)
 	if n != many {
-		err = errors.New("didn't receive enought bytes")
+		err = errors.New("didn't receive enough bytes")
+		srv.logger.Err(err.Error())
 	}
 	return
 }
@@ -292,21 +294,21 @@ func (srv *server) putblock(bytes []byte) (err error) {
 		flag := make([]byte, 2)
 		i_flag := uint16((length << 1) + 1)
 		binary.LittleEndian.PutUint16(flag, i_flag)
-		srv.logger.Println("II: sending", length, "bytes, last:", last)
-		srv.logger.Println("TX:", data)
+		srv.logger.Info("II: sending " + strconv.Itoa(length) + " bytes, last: " + strconv.Itoa(last))
+		srv.logger.Debug("TX:" + string(data))
 		n1, err1 := srv.conn.netConn.Write(flag)
 		n2, err2 := srv.conn.netConn.Write(data)
 		if n1 != len(flag) || n2 != len(data) {
 			err = errors.New("putblock: not all data was trasmitted")
-			srv.logger.Println("putblock: n1=", n1, ", n2=", n2)
+			srv.logger.Err(err.Error())
 		}
 		if err1 != nil {
 			err = errors.New("putblock: not all data was transmitted")
-			srv.logger.Println("putblock: ", err1.Error())
+			srv.logger.Err("putblock: " + err1.Error())
 		}
 		if err2 != nil {
 			err = errors.New("putblock: not all data was transmitted")
-			srv.logger.Println("putblock: ", err2.Error())
+			srv.logger.Err("putblock: " + err2.Error())
 		}
 	}
 	return

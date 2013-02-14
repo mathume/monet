@@ -13,9 +13,16 @@
 		...
 	
 	Currently only default driver.Value data types are supported.
-	Server implements the mapi protocol as defined for the monetdb. You usually don't need it. There is a global monet.Logger log.Logger instance which you can set to your needs.
-	Placeholders currently only work for values.
-	The handshake needs the subpackage crypt which will compile using cgo.
+	Server implements the mapi protocol as defined for the monetdb. You usually don't need it.
+	Placeholders currently only work for driver.Value.
+	The server authentication needs the subpackage crypt which will compile using cgo.
+	The Server has a global logger for all connections. By default nothing is logged. You can switch globally to another logger:
+
+		monet.MapiLogger = syslog.New(...)
+	or
+		monet.MapiLogger = monet.DebugToStderr
+	or
+		monet.MapiLogger = monet.New(writer, prefix, logFlags, logLevel)
 */
 package monet
 
@@ -36,7 +43,8 @@ func init(){
 	sql.Register(DRV_NAME, &mdriver{})
 }
 
-// db := sql.Open(monet.DRV_NAME, monet.ConnectionString(hostname, port, username, password, database, timeout)
+// Returns the dataSourceName for
+//	db, err := sql.Open(monet.DRV_NAME, dataSourceName)
 func ConnectionString(hostname, port, username, password, database string, timeout time.Duration) string {
 	return strings.Join([]string{hostname, port, username, password, database, timeout.String()}, c_SEP)
 }

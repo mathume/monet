@@ -39,8 +39,8 @@ func goify(data string, tcode string) (s driver.Value, err error) {
 	return
 }
 
+//type codes in comments currently not supported by go driver
 const (
-	//type codes in comments currently not supported by go driver
 	CHAR     = "char"    // (L) character string with length L
 	VARCHAR  = "varchar" // (L) string with atmost length L
 	CLOB     = "clob"
@@ -62,19 +62,10 @@ const (
 	//SEC_INTERVAL   = "sec_interval"
 	WRD = "wrd"
 
-	// Not on the website:
 	TINYINT   = "tinyint"
 	SHORTINT  = "shortint"
 	MEDIUMINT = "mediumint"
 	LONGINT   = "longint"
 	FLOAT     = "float"
 	//TIMESTAMPTZ = "timestamptz"
-
-	// full names and aliases, spaces are replaced with underscores
-	CHARACTER               = CHAR
-	CHARACTER_VARYING       = VARCHAR
-	CHARACHTER_LARGE_OBJECT = CLOB
-	BINARY_LARGE_OBJECT     = BLOB
-	NUMERIC                 = DECIMAL
-	DOUBLE_PRECISION        = DOUBLE
 )
