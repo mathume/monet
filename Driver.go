@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	SEP = ";"
+	c_SEP = ";"
 	DRV_NAME = "monet"
 )
 
@@ -18,7 +18,7 @@ func init(){
 }
 
 func ConnectionString(hostname, port, username, password, database string, timeout time.Duration) string {
-	return strings.Join([]string{hostname, port, username, password, database, timeout.String()}, SEP)
+	return strings.Join([]string{hostname, port, username, password, database, timeout.String()}, c_SEP)
 }
 
 type mdriver struct {}
@@ -26,7 +26,7 @@ type mdriver struct {}
 func (d *mdriver)Open(ConnectionString string)(driver.Conn, error){
 	c := new(mconn)
 	c.srv = NewServer()
-	s := strings.Split(ConnectionString, SEP)
+	s := strings.Split(ConnectionString, c_SEP)
 	if len(s) != 6 {
 		return nil, errors.New("Wrong connection string.")
 	}
