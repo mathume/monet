@@ -1,3 +1,6 @@
+/*
+	The monetdb mapi server handshake needs the crypt algorithm.
+*/
 package crypt
 
 /*

@@ -15,6 +15,7 @@
 	Currently only default driver.Value data types are supported.
 	Server implements the mapi protocol as defined for the monetdb. You usually don't need it. There is a global monet.Logger log.Logger instance which you can set to your needs.
 	Placeholders currently only work for values.
+	The handshake needs the subpackage crypt which will compile using cgo.
 */
 package monet
 
