@@ -30,22 +30,22 @@ var PyHashToGo = map[string]crypto.Hash{
 const (
 	MAX_PACKAGE_LENGTH = (1024 * 8) - 2
 
-	MSG_PROMPT   = ""
-	MSG_INFO     = "#"
-	MSG_ERROR    = "!"
-	MSG_Q        = "&"
-	MSG_QTABLE   = "&1"
-	MSG_QUPDATE  = "&2"
-	MSG_QSCHEMA  = "&3"
-	MSG_QTRANS   = "&4"
-	MSG_QPREPARE = "&5"
-	MSG_QBLOCK   = "&6"
-	MSG_HEADER   = "%"
-	MSG_TUPLE    = "["
-	MSG_REDIRECT = "^"
+	c_MSG_PROMPT   = ""
+	c_MSG_INFO     = "#"
+	c_MSG_ERROR    = "!"
+	c_MSG_Q        = "&"
+	c_MSG_QTABLE   = "&1"
+	c_MSG_QUPDATE  = "&2"
+	c_MSG_QSCHEMA  = "&3"
+	c_MSG_QTRANS   = "&4"
+	c_MSG_QPREPARE = "&5"
+	c_MSG_QBLOCK   = "&6"
+	c_MSG_HEADER   = "%"
+	c_MSG_TUPLE    = "["
+	c_MSG_REDIRECT = "^"
 
-	STATE_INIT  = 0
-	STATE_READY = 1
+	c_STATE_INIT  = 0
+	c_STATE_READY = 1
 
 	NET = "tcp"
 )
@@ -80,7 +80,7 @@ func NewServer() Server {
 
 func CreateServer(logger *log.Logger) Server {
 	var c conn
-	s := server{c, STATE_INIT, nil, nil, Logger}
+	s := server{c, c_STATE_INIT, nil, nil, Logger}
 	s.logger.Println("Server initialized.")
 	return &s
 }
@@ -88,7 +88,7 @@ func CreateServer(logger *log.Logger) Server {
 func (srv *server) Cmd(operation string) (response string, err error) {
 	srv.logger.Println("II: executing command", operation)
 
-	if srv.state != STATE_READY {
+	if srv.state != c_STATE_READY {
 		err = errors.New("Programming error: not ready for command")
 		return
 	}
@@ -101,7 +101,7 @@ func (srv *server) Cmd(operation string) (response string, err error) {
 	if len(response) == 0 {
 		return
 	}
-	well := []string{MSG_Q, MSG_HEADER, MSG_TUPLE}
+	well := []string{c_MSG_Q, c_MSG_HEADER, c_MSG_TUPLE}
 	var isWell bool
 	for _, v := range well {
 		isWell = isWell || strings.HasPrefix(response, v)
@@ -109,7 +109,7 @@ func (srv *server) Cmd(operation string) (response string, err error) {
 	if isWell {
 		return
 
-	} else if string(response[0]) == MSG_ERROR {
+	} else if string(response[0]) == c_MSG_ERROR {
 		err = errors.New("OperationalError: " + response[1:])
 		return
 	} else {
@@ -151,12 +151,12 @@ func (srv *server) login(iteration int, timeout time.Duration) (err error) {
 	prompt := strings.TrimSpace(block)
 
 	if len(prompt) == 0 {
-	} else if strings.HasPrefix(prompt, MSG_INFO) {
+	} else if strings.HasPrefix(prompt, c_MSG_INFO) {
 		srv.logger.Println("II", prompt[1:])
-	} else if strings.HasPrefix(prompt, MSG_ERROR) {
+	} else if strings.HasPrefix(prompt, c_MSG_ERROR) {
 		srv.logger.Println(prompt[1:])
 		err = errors.New("DatabaseError " + prompt[1:])
-	} else if strings.HasPrefix(prompt, MSG_REDIRECT) {
+	} else if strings.HasPrefix(prompt, c_MSG_REDIRECT) {
 		redirect := strings.Split(strings.Split(prompt, " \t\r\n")[0][1:], ":")
 		if redirect[1] == "merovingian" {
 			srv.logger.Println("II: merovingian proxy, restarting authentication")
@@ -181,7 +181,7 @@ func (srv *server) login(iteration int, timeout time.Duration) (err error) {
 		err = errors.New("ProgrammingError, unknown state:" + prompt)
 	}
 
-	srv.state = STATE_READY
+	srv.state = c_STATE_READY
 	return
 }
 
@@ -197,7 +197,7 @@ func (srv *server) setConn(hostname, port, username, password, database, languag
 
 func (srv *server) Disconnect() (err error) {
 	err = srv.conn.netConn.Close()
-	srv.state = STATE_INIT
+	srv.state = c_STATE_INIT
 	return
 }
 

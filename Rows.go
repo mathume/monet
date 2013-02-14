@@ -53,7 +53,7 @@ func (r *mrows) store(ll []string) (err error) {
 		return err
 	}
 	switch {
-	case strings.HasPrefix(ll[0], MSG_QTABLE):
+	case strings.HasPrefix(ll[0], c_MSG_QTABLE):
 		meta := r.s.stripws(ll[0][2:])
 
 		r.qid = meta[0]
@@ -64,7 +64,7 @@ func (r *mrows) store(ll []string) (err error) {
 
 		for _, l := range ll[1:] {
 			switch {
-			case strings.HasPrefix(l, MSG_HEADER):
+			case strings.HasPrefix(l, c_MSG_HEADER):
 				di := strings.Split(l[1:], "#")
 				d, i := strings.Split(di[0], ","), di[1]
 				for i, v := range d {
@@ -77,15 +77,15 @@ func (r *mrows) store(ll []string) (err error) {
 				case "type":
 					r.types = d
 				}
-			case strings.HasPrefix(l, MSG_TUPLE):
+			case strings.HasPrefix(l, c_MSG_TUPLE):
 				if err = r.parse(l); err != nil {
 					return
 				}
 			}
 		}
-	case strings.HasPrefix(ll[0], MSG_QBLOCK):
+	case strings.HasPrefix(ll[0], c_MSG_QBLOCK):
 		for _, l := range ll[1:] {
-			if strings.HasPrefix(l, MSG_TUPLE) {
+			if strings.HasPrefix(l, c_MSG_TUPLE) {
 				if err = r.parse(l); err != nil {
 					return
 				}

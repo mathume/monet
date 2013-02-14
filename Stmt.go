@@ -63,9 +63,9 @@ func (s *mstmt) getResult(res string) (r driver.Result, err error) {
 		return
 	}
 	switch {
-	case strings.HasPrefix(ll[0], MSG_QTRANS), strings.HasPrefix(ll[0], MSG_QSCHEMA):
+	case strings.HasPrefix(ll[0], c_MSG_QTRANS), strings.HasPrefix(ll[0], c_MSG_QSCHEMA):
 		r = driver.ResultNoRows
-	case strings.HasPrefix(ll[0], MSG_QUPDATE):
+	case strings.HasPrefix(ll[0], c_MSG_QUPDATE):
 		sai := s.stripws(ll[0][2:])
 		if ra, er1 := strconv.ParseInt(sai[0], 10, 64); err != nil {
 			err = er1
@@ -88,7 +88,7 @@ func (s *mstmt) skipInfo(res string) (lines []string) {
 }
 
 func (s *mstmt) skipInfoL(ll []string) (lines []string) {
-	for strings.HasPrefix(ll[0], MSG_INFO) {
+	for strings.HasPrefix(ll[0], c_MSG_INFO) {
 		ll = ll[1:]
 	}
 	return ll
@@ -159,7 +159,7 @@ func (s *mstmt) checkError(la []string) (ll []string, err error) {
 	if len(la) == 0 {
 		return nil, errors.New("Result empty")
 	}
-	if strings.HasPrefix(la[0], MSG_ERROR) {
+	if strings.HasPrefix(la[0], c_MSG_ERROR) {
 		if len(la[0]) == 1 {
 			err = errors.New("NO ERROR SPECS RECEIVED FROM SERVER")
 		} else {

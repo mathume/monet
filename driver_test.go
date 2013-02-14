@@ -17,7 +17,7 @@ var TestErr error = errors.New("TestErr")
 type DRIVER struct{}
 
 const (
-	NO_MSG_INFO = "NO_MSG_INFO"
+	NO_c_MSG_INFO = "NO_c_MSG_INFO"
 )
 
 var serverResponse = "&1 0 1 6 1\n% sys.alltypes,	sys.alltypes,	sys.alltypes,	sys.alltypes,	sys.alltypes,	sys.alltypes # table_name \n% col1,	col2,	col3,	col4,	col5,	col6 # name\n% bigint,	double,	timestamp,	varchar,	clob,	blob # type\n% 14,	24,	26,	12,	12,	0 # length\n[ 12342524353465,	1.24354e-95,	2013-02-13 13:53:09.000000,	\"kaixo mundua\",	\"kaixo mundua\",	100110	]"
@@ -343,26 +343,26 @@ func (d *DRIVER) TestStmtExecCallsConnCmd(c *C) {
 }
 
 func (d *DRIVER) TestStmtSkipInfo(c *C) {
-	r := MSG_INFO + "any\n" + NO_MSG_INFO + "other\n"
+	r := c_MSG_INFO + "any\n" + NO_c_MSG_INFO + "other\n"
 	s := new(mstmt)
 	ll := s.skipInfo(r)
 	c.Assert(ll, Not(IsNil))
 	c.Assert(len(ll) > 0, Equals, true)
-	c.Assert(ll[0], Equals, NO_MSG_INFO+"other")
+	c.Assert(ll[0], Equals, NO_c_MSG_INFO+"other")
 }
 
 func (d *DRIVER) TestStmtResultReturnsError(c *C) {
 	errMsg := "error message"
-	r := MSG_ERROR + errMsg
+	r := c_MSG_ERROR + errMsg
 	_, err := new(mstmt).getResult(r)
 	c.Assert(err, Not(IsNil))
 	c.Assert(err.Error(), Equals, "error message")
 }
 
 func (d *DRIVER) TestStmtResultReturnsResultNoRows(c *C) {
-	m := []string{MSG_QTRANS, MSG_QSCHEMA}
+	m := []string{c_MSG_QTRANS, c_MSG_QSCHEMA}
 	for _, v := range m {
-		msg := v + "MSG"
+		msg := v + "c_MSG"
 		r, err := new(mstmt).getResult(msg)
 		c.Assert(err, IsNil)
 		c.Assert(r, Equals, driver.ResultNoRows)
@@ -386,7 +386,7 @@ func (d *DRIVER) TestStrip(c *C) {
 func (d *DRIVER) TestStmtResult(c *C) {
 	var rowsaff int64 = 123456
 	var lastin int64 = 34
-	msg := MSG_QUPDATE + strconv.FormatInt(rowsaff, 10) + "\t" + strconv.FormatInt(lastin, 10)
+	msg := c_MSG_QUPDATE + strconv.FormatInt(rowsaff, 10) + "\t" + strconv.FormatInt(lastin, 10)
 	c.Log(msg)
 	r, err := new(mstmt).getResult(msg)
 	c.Assert(err, IsNil)
