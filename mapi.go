@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"monet/crypt"
+	"./crypt"
 	"net"
 	"strconv"
 	"strings"
