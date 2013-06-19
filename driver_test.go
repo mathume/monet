@@ -500,3 +500,11 @@ func (d *DRIVER) TestSQLDoesntCallOpenOnOpen(c *C) {
 	_, err := sql.Open(DRV_NAME, "anything")
 	c.Assert(err, IsNil)
 }
+
+func (d *DRIVER)TestCrypt(c *C){
+	key, slash := "27041982_mathume", "./"
+	digest, err := Crypt(key, slash)
+	c.Assert(err, IsNil)
+	previously_calculated := "./jcdiX3nUJlM"
+	c.Assert(digest, Equals, previously_calculated)
+}
