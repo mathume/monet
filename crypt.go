@@ -1,7 +1,7 @@
 /*
 	The monetdb mapi server handshake needs the crypt algorithm.
 */
-package crypt
+package monet
 
 /*
 #cgo CFLAGS: -l/usr/include

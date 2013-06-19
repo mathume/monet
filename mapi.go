@@ -9,7 +9,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"./crypt"
 	"net"
 	"strconv"
 	"strings"
@@ -230,7 +229,7 @@ func (srv *server) challenge_response(challenge string) (response string) {
 		s.Write([]byte(salt))
 		pwhash = "{MD5}" + hex.EncodeToString(s.Sum(nil))
 	} else if contains(hh, "crypt") {
-		pwhash, err := crypt.Crypt((password + salt)[:8], salt[len(salt)-2:])
+		pwhash, err := Crypt((password + salt)[:8], salt[len(salt)-2:])
 		if err != nil {
 			srv.logger.Err("Error calculating response in crypt:")
 			srv.logger.Err(err.Error())
