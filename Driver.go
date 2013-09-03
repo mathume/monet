@@ -15,7 +15,6 @@
 	Currently only default driver.Value data types are supported.
 	Server implements the mapi protocol as defined for the monetdb. You usually don't need it.
 	Placeholders currently only work for driver.Value.
-	The server authentication needs the subpackage crypt which will compile using cgo.
 	The Server has a global logger for all connections. By default nothing is logged. You can switch globally to another logger:
 
 		monet.MapiLogger = syslog.New(...)
