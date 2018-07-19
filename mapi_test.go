@@ -2,7 +2,7 @@ package monet
 
 import (
 	"encoding/binary"
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 	"net"
 	"errors"
 	"strings"

@@ -3,7 +3,7 @@ package monet
 import (
 	"database/sql"
 	"database/sql/driver"
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 	"time"
 )
 

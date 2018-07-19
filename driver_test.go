@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"io"
-	. "launchpad.net/gocheck"
+	. "gopkg.in/check.v1"
 	"strconv"
 	"strings"
 	"time"
