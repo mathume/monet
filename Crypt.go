@@ -4,7 +4,7 @@
 package monet
 
 /*
-#cgo CFLAGS: -l/usr/include
+#cgo CFLAGS: -I/usr/include
 #cgo LDFLAGS: -lcrypt
 #include <stdlib.h>
 #include <errno.h>
